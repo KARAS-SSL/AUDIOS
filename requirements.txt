@@ -1,0 +1,8 @@
+ipykernel
+librosa
+matplotlib
+numpy
+pandas
+seaborn
+soundfile
+tqdm
