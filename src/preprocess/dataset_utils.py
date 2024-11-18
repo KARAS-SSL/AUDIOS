@@ -1,7 +1,12 @@
 
+import csv
 import os
-import pandas as pd
+
 import librosa
+import numpy as np
+import pandas as pd
+import soundfile as sf
+
 
 #----------------------------------------------------------------
 # Function to get an audio duration
@@ -14,8 +19,56 @@ def audio_duration(filename, dataset_path):
         print(f"Could not load file {filename}: {e}")
         return None
 
+# Function to get an audio amplitude
+def audio_amplitude(filename, dataset_path):
+    try:
+        audio_path = os.path.join(dataset_path, filename)
+        y, sr = librosa.load(audio_path, sr=None)
+        return np.max(np.abs(y))
+    except Exception as e:
+        print(f"Could not load file {filename}: {e}")
+        return None
+
 #----------------------------------------------------------------
-# Functions to add duration information to the dataset
+# Function to generate a csv file from a dataset
+# Create a list containing the path, speaker's name, id and gender, and label for each audio file.
+def generate_dataset_file(dataset_path):
+    dataset_folder_path = os.path.dirname(dataset_path)
+    fake_audios_path    = os.path.join(dataset_folder_path, "fake_voices")
+    real_audios_path    = os.path.join(dataset_folder_path, "real_voices")
+
+    files = []
+
+    # For every spoofed file, add its metadata to the list
+    for folder in os.listdir(fake_audios_path):
+        folder_path = os.path.join(fake_audios_path, folder)
+
+        person, ids, *_ = folder.split("_")
+        gender = ids[0]
+        for filename in os.listdir(folder_path):
+            audio_path = os.path.join("fake_voices", folder, filename)  # relative path inside the dataset
+            files.append([audio_path, person, ids, gender, "spoof"])
+
+    # For every bona-fide file, add its metadata to the list
+    for folder in os.listdir(real_audios_path):
+        folder_path = os.path.join(real_audios_path, folder)
+
+        person, ids, *_ = folder.split("_")
+        gender = ids[0]
+        for filename in os.listdir(folder_path):
+            audio_path = os.path.join("real_voices", folder, filename)
+            files.append([audio_path, person, ids, gender, "bona-fide"])
+    
+    # Export the list to a .csv file.
+    fields = ["file", "speaker", "id", "gender", "label"]
+    with open(dataset_path, "w") as f:
+        writer = csv.writer(f)
+        writer.writerow(fields)
+        writer.writerows(files)
+
+    print("Dataset file generated. Dataset saved to ", dataset_path)
+
+# Function to add duration information to the dataset
 def add_duration_dataset(dataset_path, new_dataset_path):
     dataset_folder_path    = os.path.dirname(dataset_path)
     dataset_df             = pd.read_csv(dataset_path)
@@ -23,6 +76,62 @@ def add_duration_dataset(dataset_path, new_dataset_path):
     dataset_df.to_csv(new_dataset_path, index=False)
     print("Duration added to dataset. New dataset saved to ", new_dataset_path)
 
+# Function to add amplitude information to the dataset
+def add_amplitude_dataset(dataset_path, new_dataset_path):
+    dataset_folder_path     = os.path.dirname(dataset_path)
+    dataset_df              = pd.read_csv(dataset_path)
+    dataset_df['amplitude'] = dataset_df['file'].apply(lambda filename: audio_amplitude(filename, dataset_folder_path))
+    dataset_df.to_csv(new_dataset_path, index=False)
+    print("Amplitude added to dataset. New dataset saved to ", new_dataset_path)
+
+#----------------------------------------------------------------
+# Function to normalize audio to a target RMS energy level
+def rms_normalize(audio, target_rms=0.1):
+    rms = np.sqrt(np.mean(audio**2))
+    if rms == 0:
+        return audio  # Avoid division by zero
+    return audio * (target_rms / rms)
+
+# Function to normalize audio to have a peak amplitude of 1.
+def peak_normalize(audio):
+    peak = np.max(np.abs(audio))
+    if peak == 0:
+        return audio  # Avoid division by zero
+    return audio / peak
+
+def normalize_audio_file(filename, dataset_path, output_path):
+    try:
+        audio_path = os.path.join(dataset_path, filename)
+        y, sr = librosa.load(audio_path, sr=None)
+
+        normalized_audio = peak_normalize(y)
+
+        output_path = os.path.join(output_path, os.path.dirname(filename))
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+
+        output_file = os.path.join(output_path, os.path.basename(filename))
+        sf.write(output_file, normalized_audio, sr)
+        # print(f"Normalized audio saved to {output_file}")
+    except Exception as e:
+        print(f"Error processing {filename}: {e}")
+
+# Function to normalize the audio amplitude of the dataset
+def normalize_dataset(dataset_path, new_dataset_path):
+    dataset_folder_path     = os.path.dirname(dataset_path)
+    new_dataset_folder_path = os.path.dirname(new_dataset_path)
+    dataset_df              = pd.read_csv(dataset_path)
+
+    # Normalize all audio files
+    for filename in dataset_df['file']:
+        normalize_audio_file(filename, dataset_folder_path, new_dataset_folder_path)
+
+    # Generate a new csv file
+    generate_dataset_file(new_dataset_path)
+
+    print("Dataset normalized. New dataset saved to ", new_dataset_path)
+
+#----------------------------------------------------------------
 # Balances the dataset by removing samples with low duration
 def balance_dataset(dataset_path, new_dataset_path, imbalance_threshold, seed):
     dataset_df = pd.read_csv(dataset_path)
