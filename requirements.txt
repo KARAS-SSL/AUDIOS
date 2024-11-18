@@ -1,4 +1,5 @@
 ipykernel
+fabric
 librosa
 matplotlib
 numpy

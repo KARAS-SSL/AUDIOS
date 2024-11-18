@@ -2,7 +2,7 @@
 import os
 from fabric import task
 
-from src.preprocess.dataset_utils    import add_duration_dataset, balance_dataset, display_info_dataset 
+from src.preprocess.dataset_utils    import add_duration_dataset, add_amplitude_dataset, balance_dataset, display_info_dataset, generate_dataset_meta, normalize_dataset
 from src.preprocess.embeddings_utils import generate_embeddings_wav2vec
 
 # Set the seed value all over the place to make this reproducible
@@ -11,12 +11,35 @@ randomness_seed = 7
 #------------------------------------------------------------------------------
 
 @task
+def GenerateDatasetCSV(c):
+    """Generates the dataset .csv file."""
+    
+    dataset_path = "datasets/release/"
+    generate_dataset_meta(dataset_path)
+
+@task
 def AddDatasetDuration(c):
     """Adds duration information to the dataset."""
     
-    dataset_path     = "datasets/release_in_the_wild/meta.csv"
-    new_dataset_path = "datasets/release_in_the_wild/meta_duration.csv" 
+    dataset_path     = "datasets/release/meta.csv"
+    new_dataset_path = "datasets/release/meta_duration.csv" 
     add_duration_dataset(dataset_path, new_dataset_path)
+
+@task
+def AddDatasetAmplitude(c):
+    """Adds amplitude information to the dataset."""
+    
+    dataset_path     = "datasets/release/meta.csv"
+    new_dataset_path = "datasets/release/meta_amplitude.csv" 
+    add_amplitude_dataset(dataset_path, new_dataset_path)
+
+@task
+def NormalizeDataset(c):
+    """Normalizes the audio amplitudes of the dataset."""
+    
+    dataset_path     = "datasets/release/meta.csv"
+    new_dataset_path = "datasets/release/meta_normalized.csv" 
+    normalize_dataset(dataset_path, new_dataset_path)
 
 @task
 def BalanceDataset(c):
