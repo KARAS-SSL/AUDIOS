@@ -6,7 +6,9 @@ import librosa
 import numpy as np
 import pandas as pd
 import soundfile as sf
+import tqdm
 
+tqdm.pandas()
 
 #----------------------------------------------------------------
 # Function to get an audio duration
@@ -39,8 +41,11 @@ def generate_dataset_file(dataset_path):
 
     files = []
 
+    print("Generating dataset file...")
+
     # For every spoofed file, add its metadata to the list
-    for folder in os.listdir(fake_audios_path):
+    print("spoof files: ", end="")
+    for folder in tqdm(os.listdir(fake_audios_path)):
         folder_path = os.path.join(fake_audios_path, folder)
 
         person, ids, *_ = folder.split("_")
@@ -49,8 +54,9 @@ def generate_dataset_file(dataset_path):
             audio_path = os.path.join("fake_voices", folder, filename)  # relative path inside the dataset
             files.append([audio_path, person, ids, gender, "spoof"])
 
+    print("bona-fide files: ", end="")
     # For every bona-fide file, add its metadata to the list
-    for folder in os.listdir(real_audios_path):
+    for folder in tqdm(os.listdir(real_audios_path)):
         folder_path = os.path.join(real_audios_path, folder)
 
         person, ids, *_ = folder.split("_")
@@ -58,13 +64,15 @@ def generate_dataset_file(dataset_path):
         for filename in os.listdir(folder_path):
             audio_path = os.path.join("real_voices", folder, filename)
             files.append([audio_path, person, ids, gender, "bona-fide"])
-    
+
     # Export the list to a .csv file.
+    print("Writing to disk...", end=" ")    
     fields = ["file", "speaker", "id", "gender", "label"]
     with open(dataset_path, "w") as f:
         writer = csv.writer(f)
         writer.writerow(fields)
         writer.writerows(files)
+    print("Done!")
 
     print("Dataset file generated. Dataset saved to ", dataset_path)
 
@@ -72,7 +80,7 @@ def generate_dataset_file(dataset_path):
 def add_duration_dataset(dataset_path, new_dataset_path):
     dataset_folder_path    = os.path.dirname(dataset_path)
     dataset_df             = pd.read_csv(dataset_path)
-    dataset_df['duration'] = dataset_df['file'].apply(lambda filename: audio_duration(filename, dataset_folder_path))
+    dataset_df['duration'] = dataset_df['file'].progress_apply(lambda filename: audio_duration(filename, dataset_folder_path))
     dataset_df.to_csv(new_dataset_path, index=False)
     print("Duration added to dataset. New dataset saved to ", new_dataset_path)
 
@@ -80,7 +88,7 @@ def add_duration_dataset(dataset_path, new_dataset_path):
 def add_amplitude_dataset(dataset_path, new_dataset_path):
     dataset_folder_path     = os.path.dirname(dataset_path)
     dataset_df              = pd.read_csv(dataset_path)
-    dataset_df['amplitude'] = dataset_df['file'].apply(lambda filename: audio_amplitude(filename, dataset_folder_path))
+    dataset_df['amplitude'] = dataset_df['file'].progress_apply(lambda filename: audio_amplitude(filename, dataset_folder_path))
     dataset_df.to_csv(new_dataset_path, index=False)
     print("Amplitude added to dataset. New dataset saved to ", new_dataset_path)
 
@@ -122,9 +130,11 @@ def normalize_dataset(dataset_path, new_dataset_path):
     new_dataset_folder_path = os.path.dirname(new_dataset_path)
     dataset_df              = pd.read_csv(dataset_path)
 
+    print("Normalizing dataset...")
     # Normalize all audio files
-    for filename in dataset_df['file']:
+    for filename in tqdm(dataset_df['file']):
         normalize_audio_file(filename, dataset_folder_path, new_dataset_folder_path)
+    print("Done!")
 
     # Generate a new csv file
     generate_dataset_file(new_dataset_path)
