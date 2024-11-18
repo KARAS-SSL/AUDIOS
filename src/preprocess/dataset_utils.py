@@ -6,7 +6,7 @@ import librosa
 import numpy as np
 import pandas as pd
 import soundfile as sf
-import tqdm
+from tqdm import tqdm
 
 tqdm.pandas()
 
@@ -34,10 +34,9 @@ def audio_amplitude(filename, dataset_path):
 #----------------------------------------------------------------
 # Function to generate a csv file from a dataset
 # Create a list containing the path, speaker's name, id and gender, and label for each audio file.
-def generate_dataset_file(dataset_path):
-    dataset_folder_path = os.path.dirname(dataset_path)
-    fake_audios_path    = os.path.join(dataset_folder_path, "fake_voices")
-    real_audios_path    = os.path.join(dataset_folder_path, "real_voices")
+def generate_dataset_meta(dataset_path):
+    fake_audios_path = os.path.join(dataset_path, "fake_voices")
+    real_audios_path = os.path.join(dataset_path, "real_voices")
 
     files = []
 
@@ -66,20 +65,19 @@ def generate_dataset_file(dataset_path):
             files.append([audio_path, person, ids, gender, "bona-fide"])
 
     # Export the list to a .csv file.
-    print("Writing to disk...", end=" ")    
     fields = ["file", "speaker", "id", "gender", "label"]
-    with open(dataset_path, "w") as f:
-        writer = csv.writer(f)
-        writer.writerow(fields)
-        writer.writerows(files)
+    meta_path = os.path.join(dataset_path, "meta.csv")
+
+    print("Writing to disk...", end=" ")    
+    pd.DataFrame(files, columns=fields).to_csv(meta_path, index=False)
     print("Done!")
 
-    print("Dataset file generated. Dataset saved to ", dataset_path)
+    print("Dataset file generated. Dataset saved to ", meta_path)
 
 # Function to add duration information to the dataset
 def add_duration_dataset(dataset_path, new_dataset_path):
     dataset_folder_path    = os.path.dirname(dataset_path)
-    dataset_df             = pd.read_csv(dataset_path)
+    dataset_df             = pd.read_csv(dataset_path, keep_default_na=False)
     dataset_df['duration'] = dataset_df['file'].progress_apply(lambda filename: audio_duration(filename, dataset_folder_path))
     dataset_df.to_csv(new_dataset_path, index=False)
     print("Duration added to dataset. New dataset saved to ", new_dataset_path)
@@ -87,7 +85,7 @@ def add_duration_dataset(dataset_path, new_dataset_path):
 # Function to add amplitude information to the dataset
 def add_amplitude_dataset(dataset_path, new_dataset_path):
     dataset_folder_path     = os.path.dirname(dataset_path)
-    dataset_df              = pd.read_csv(dataset_path)
+    dataset_df              = pd.read_csv(dataset_path, keep_default_na=False)
     dataset_df['amplitude'] = dataset_df['file'].progress_apply(lambda filename: audio_amplitude(filename, dataset_folder_path))
     dataset_df.to_csv(new_dataset_path, index=False)
     print("Amplitude added to dataset. New dataset saved to ", new_dataset_path)
@@ -128,7 +126,7 @@ def normalize_audio_file(filename, dataset_path, output_path):
 def normalize_dataset(dataset_path, new_dataset_path):
     dataset_folder_path     = os.path.dirname(dataset_path)
     new_dataset_folder_path = os.path.dirname(new_dataset_path)
-    dataset_df              = pd.read_csv(dataset_path)
+    dataset_df              = pd.read_csv(dataset_path, keep_default_na=False)
 
     print("Normalizing dataset...")
     # Normalize all audio files
@@ -137,14 +135,14 @@ def normalize_dataset(dataset_path, new_dataset_path):
     print("Done!")
 
     # Generate a new csv file
-    generate_dataset_file(new_dataset_path)
+    generate_dataset_meta(new_dataset_path)
 
     print("Dataset normalized. New dataset saved to ", new_dataset_path)
 
 #----------------------------------------------------------------
 # Balances the dataset by removing samples with low duration
 def balance_dataset(dataset_path, new_dataset_path, imbalance_threshold, seed):
-    dataset_df = pd.read_csv(dataset_path)
+    dataset_df = pd.read_csv(dataset_path, keep_default_na=False)
     
     # Per speaker counts
     spoof_per_speaker = dataset_df[dataset_df.label == 'spoof'].groupby("speaker").duration.count()
@@ -196,7 +194,7 @@ def balance_dataset(dataset_path, new_dataset_path, imbalance_threshold, seed):
 def display_info_dataset(dataset_path):
     print("Dataset info ------") 
     # Read dataset
-    dataset_df             = pd.read_csv(dataset_path)
+    dataset_df             = pd.read_csv(dataset_path, keep_default_na=False)
     if 'duration' not in dataset_df:
         print("[ERROR] Duration column not found. Please add it to the dataset.")
         return 
