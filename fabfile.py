@@ -59,10 +59,8 @@ def BalanceDataset(c):
 @task
 def DisplayDatasetInfo(c):
     """Displays information about the dataset.""" 
-    # full_dataset_path     = "datasets/release_in_the_wild/meta_duration.csv"
-    # display_info_dataset(full_dataset_path)
-    balanced_dataset_path = "datasets/release_in_the_wild/meta_balanced.csv" 
-    display_info_dataset(balanced_dataset_path)
+    dataset_path = "datasets/release/metadata.csv" 
+    display_info_dataset(dataset_path)
 
 #----------------------------------------------------------------------------
 

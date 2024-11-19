@@ -17,8 +17,10 @@ def generate_embeddings_wav2vec(dataset_path, target_sample_rate, model_id, embe
     model       = Wav2Vec2ForCTC.from_pretrained(model_id) 
     model.eval()
 
-    for i in tqdm(range(len(dataset_df))):
-        audio_name  = dataset_df['file'][i]
+    for i in tqdm(range(len(dataset_df))): 
+        audio_name  = dataset_df['file'][i] 
+        if int(audio_name.split(".")[0]) < 28604: continue
+    
         audio_path  = os.path.join(os.path.dirname(dataset_path), audio_name)
         output_path = os.path.join(embeddings_path, f"{audio_name}_embedding.pt")
 

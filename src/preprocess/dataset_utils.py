@@ -34,45 +34,85 @@ def audio_amplitude(filename, dataset_path):
 #----------------------------------------------------------------
 # Function to generate a csv file from a dataset
 # Create a list containing the path, speaker's name, id and gender, and label for each audio file.
+# Function to generate a CSV file from a dataset
 def generate_dataset_meta(dataset_path):
     fake_audios_path = os.path.join(dataset_path, "fake_voices")
     real_audios_path = os.path.join(dataset_path, "real_voices")
+    people = {}
 
-    files = []
+    # Process fake voices
+    for folder in os.listdir(fake_audios_path):
+        path = os.path.join(fake_audios_path, folder)
+        if not os.path.isdir(path):
+            continue  # Skip non-folder items
 
-    print("Generating dataset file...")
+        files = [f for f in os.listdir(path) if f.endswith('.wav')]
 
-    # For every spoofed file, add its metadata to the list
-    print("spoof files: ", end="")
-    for folder in tqdm(os.listdir(fake_audios_path)):
-        folder_path = os.path.join(fake_audios_path, folder)
+        try:
+            person, ids, *_ = folder.split("_")
+            gender = ids[0]
+            ids = ids[1:]
+        except ValueError:
+            print(f"Skipping folder with unexpected format: {folder}")
+            continue
 
-        person, ids, *_ = folder.split("_")
-        gender = ids[0]
-        for filename in os.listdir(folder_path):
-            audio_path = os.path.join("fake_voices", folder, filename)  # relative path inside the dataset
-            files.append([audio_path, person, ids, gender, "spoof"])
+        people[person] = {
+            "gender": gender,
+            "id": ids,
+            "spoof_count": len(files),
+            "spoof_folder": folder,
+            "bonafide_count": 0,
+            "bonafide_folder": ""
+        }
 
-    print("bona-fide files: ", end="")
-    # For every bona-fide file, add its metadata to the list
-    for folder in tqdm(os.listdir(real_audios_path)):
-        folder_path = os.path.join(real_audios_path, folder)
+    # Process real voices
+    for folder in os.listdir(real_audios_path):
+        path = os.path.join(real_audios_path, folder)
+        if not os.path.isdir(path):
+            continue  # Skip non-folder items
 
-        person, ids, *_ = folder.split("_")
-        gender = ids[0]
-        for filename in os.listdir(folder_path):
-            audio_path = os.path.join("real_voices", folder, filename)
-            files.append([audio_path, person, ids, gender, "bona-fide"])
+        files = [f for f in os.listdir(path) if f.endswith('.wav')]
 
-    # Export the list to a .csv file.
-    fields = ["file", "speaker", "id", "gender", "label"]
-    meta_path = os.path.join(dataset_path, "meta.csv")
+        try:
+            person, ids, *_ = folder.split("_")
+            gender = ids[0]
+            ids = ids[1:]
+        except ValueError:
+            print(f"Skipping folder with unexpected format: {folder}")
+            continue
 
-    print("Writing to disk...", end=" ")    
-    pd.DataFrame(files, columns=fields).to_csv(meta_path, index=False)
-    print("Done!")
+        if person in people:
+            people[person]["bonafide_count"] = len(files)
+            people[person]["bonafide_folder"] = folder
+        else:
+            people[person] = {
+                "gender": gender,
+                "id": ids,
+                "spoof_count": 0,
+                "spoof_folder": "",
+                "bonafide_count": len(files),
+                "bonafide_folder": folder
+            }
 
-    print("Dataset file generated. Dataset saved to ", meta_path)
+    # Write metadata to CSV
+    fields = ["person", "gender", "id", "spoof_count", "bonafide_count", "spoof_folder", "bonafide_folder"]
+    output_file = os.path.join(dataset_path, "metadata.csv")
+    with open(output_file, "w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(fields)
+        for person, data in people.items():
+            writer.writerow([
+                person, 
+                data["gender"], 
+                data["id"], 
+                data["spoof_count"], 
+                data["bonafide_count"], 
+                os.path.join(fake_audios_path, data["spoof_folder"]), 
+                os.path.join(real_audios_path, data["bonafide_folder"])
+            ])
+
+    print(f"Metadata CSV written to {output_file}")
+
 
 # Function to add duration information to the dataset
 def add_duration_dataset(dataset_path, new_dataset_path):
@@ -195,24 +235,19 @@ def display_info_dataset(dataset_path):
     print("Dataset info ------") 
     # Read dataset
     dataset_df             = pd.read_csv(dataset_path, keep_default_na=False)
-    if 'duration' not in dataset_df:
-        print("[ERROR] Duration column not found. Please add it to the dataset.")
-        return 
+    print(dataset_df) 
     
     # Dataset duration
-    print(dataset_df.groupby("label")['duration'].sum().sort_values(ascending=False) / 3600, end="\n\n")
-
-    # Dataset all info
-    print(dataset_df) 
+    # print(dataset_df.groupby("label")['duration'].sum().sort_values(ascending=False) / 3600, end="\n\n")
 
     # Spoof and bonafide per speaker
-    spoof_per_speaker    = dataset_df[dataset_df.label == 'spoof'].groupby("speaker").duration.count()
-    bonafide_per_speaker = dataset_df[dataset_df.label == 'bona-fide'].groupby("speaker").duration.count()
-    counts_df = pd.DataFrame({
-        'spoof_count': spoof_per_speaker,
-        'bona_fide_count': bonafide_per_speaker
-    }).fillna(0)  
-    counts_df['total']       = counts_df['spoof_count'] + counts_df['bona_fide_count']
-    counts_df['spoof_ratio'] = counts_df['spoof_count'] / counts_df['total']
-    counts_df.sort_values("spoof_ratio")
-    print(counts_df) 
+    # spoof_per_speaker    = dataset_df[dataset_df.label == 'spoof'].groupby("speaker").duration.count()
+    # bonafide_per_speaker = dataset_df[dataset_df.label == 'bona-fide'].groupby("speaker").duration.count()
+    # counts_df = pd.DataFrame({
+    #     'spoof_count': spoof_per_speaker,
+    #     'bona_fide_count': bonafide_per_speaker
+    # }).fillna(0)  
+    # counts_df['total']       = counts_df['spoof_count'] + counts_df['bona_fide_count']
+    # counts_df['spoof_ratio'] = counts_df['spoof_count'] / counts_df['total']
+    # counts_df.sort_values("spoof_ratio")
+    # print(counts_df) 
