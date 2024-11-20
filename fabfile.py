@@ -2,8 +2,8 @@
 import os
 from fabric import task
 
-from src.preprocess.dataset_utils    import add_duration_dataset, add_amplitude_dataset, balance_dataset, display_info_dataset, generate_dataset_meta, normalize_dataset
-from src.preprocess.embeddings_utils import generate_embeddings_wav2vec
+from src.utils.dataset    import add_duration_dataset, add_amplitude_dataset, balance_dataset, display_info_dataset, generate_dataset_meta, normalize_dataset
+from src.utils.embeddings import generate_embeddings_wav2vec
 
 # Set the seed value all over the place to make this reproducible
 randomness_seed = 7
