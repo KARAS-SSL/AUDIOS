@@ -4,6 +4,7 @@ import librosa
 import numpy as np
 import pandas as pd
 import soundfile as sf
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
 tqdm.pandas()
@@ -255,6 +256,75 @@ def normalize_dataset(dataset_meta_path: str, new_dataset_folder_path: str, targ
     generate_dataset_files_meta(new_dataset_folder_path)
 
     print("Dataset normalized. New dataset saved to ", new_dataset_folder_path)
+
+
+#----------------------------------------------------------------
+# DATASET SPLIT FUNCTIONS
+
+# Function to split a dataset in pretext and downstream
+def split_dataset(full_df, pretext_train_percentage, pretext_val_percentage, downstream_train_percentage, downstream_val_percentage, downstream_test_percentage, random_state):
+    # Split dataset in pretext and downstream
+    pretext_percentage = pretext_train_percentage + pretext_val_percentage
+    pretext_df, downstream_df = train_test_split(full_df, train_size=pretext_percentage, random_state=random_state)
+
+    # Split pretext in train and val
+    pretext_train_proportion = pretext_train_percentage / pretext_percentage
+    pretext_train_df, pretext_val_df = train_test_split(pretext_df, train_size=pretext_train_proportion, random_state=random_state)
+
+    # Split downstream in train, val and test
+    downstream_percentage = downstream_train_percentage + downstream_val_percentage + downstream_test_percentage
+    downstream_train_proportion = downstream_train_percentage / downstream_percentage
+    downstream_train_df, downstream_val_test_df = train_test_split(downstream_df, train_size=downstream_train_proportion, random_state=random_state)
+
+    downstream_val_proportion = downstream_val_percentage / (downstream_val_percentage + downstream_test_percentage)
+    downstream_val_df, downstream_test_df = train_test_split(downstream_val_test_df, train_size=downstream_val_proportion, random_state=random_state)
+
+    return pretext_train_df, pretext_val_df, downstream_train_df, downstream_val_df, downstream_test_df
+
+
+# Function to split the full dataset
+def split_full_dataset(dataset_meta_path, pre_train_percentage, pre_val_percentage, down_train_percentage, down_val_percentage, down_test_percentage, random_state):
+    print(f"Splitting dataset {dataset_meta_path}...") 
+
+    if(pre_train_percentage + pre_val_percentage + down_train_percentage + down_val_percentage + down_test_percentage != 1):
+        raise Exception("Sum of pretain train and val and downstream train, val and test percentages must be equal to 1")
+
+    # Full dataset
+    full_df     = pd.read_csv(dataset_meta_path, keep_default_na=False)
+    full_df     = full_df.where(full_df['spoof_count'] > 0).dropna()
+    no_spoof_df = full_df.where(full_df['spoof_count'] == 0).dropna() # people with no spoof audios are separated for the downstream test
+
+    # Split full dataset in male and female to make sure training datasets are balanced
+    male_df   = full_df.where(full_df['gender'] == 'M').dropna()
+    female_df = full_df.where(full_df['gender'] == 'F').dropna()
+
+    # Split male and female datasets in pretext train, pretext val, downstream train, downstream val and downstream test
+    male_split   = split_dataset(male_df, pre_train_percentage, pre_val_percentage, down_train_percentage, down_val_percentage, down_test_percentage, random_state)
+    female_split = split_dataset(female_df, pre_train_percentage, pre_val_percentage, down_train_percentage, down_val_percentage, down_test_percentage, random_state)
+
+    # Merge male and female split datasets
+    pretext_train_df    = pd.concat([male_split[0], female_split[0]])
+    pretext_val_df      = pd.concat([male_split[1], female_split[1]])
+    downstream_train_df = pd.concat([male_split[2], female_split[2]])
+    downstream_val_df   = pd.concat([male_split[3], female_split[3]])
+    downstream_test_df  = pd.concat([male_split[4], female_split[4], no_spoof_df])
+
+    # Save train, val and test datasets
+    dataset_folder        = os.path.dirname(dataset_meta_path)
+    pretext_train_path    = os.path.join(dataset_folder, "people-pretext_train.csv")
+    pretext_val_path      = os.path.join(dataset_folder, "people-pretext_val.csv")
+    downstream_train_path = os.path.join(dataset_folder, "people-downstream_train.csv")
+    downstream_val_path   = os.path.join(dataset_folder, "people-downstream_val.csv")
+    downstream_test_path  = os.path.join(dataset_folder, "people-downstream_test.csv")
+   
+    print(f"Saving split datasets in {dataset_folder}...")
+    pretext_train_df.to_csv(pretext_train_path, index=False)
+    pretext_val_df.to_csv(pretext_val_path, index=False)
+    downstream_train_df.to_csv(downstream_train_path, index=False)
+    downstream_val_df.to_csv(downstream_val_path, index=False)
+    downstream_test_df.to_csv(downstream_test_path, index=False)
+
+    print("Done!")
 
 
 # ----------------------------------------------------------------
