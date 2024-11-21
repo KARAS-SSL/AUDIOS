@@ -2,7 +2,7 @@
 import os
 from fabric import task
 
-from src.utils.dataset    import add_duration_dataset, add_amplitude_dataset, balance_dataset, display_info_dataset, generate_dataset_meta, normalize_dataset
+from src.utils.dataset    import add_duration_dataset, add_amplitude_dataset, balance_dataset, display_info_dataset, generate_dataset_files_meta, generate_dataset_people_meta, normalize_dataset
 from src.utils.embeddings import generate_embeddings_wav2vec
 
 # Set the seed value all over the place to make this reproducible
@@ -12,33 +12,34 @@ randomness_seed = 7
 
 @task
 def GenerateDatasetCSV(c):
-    """Generates the dataset .csv file."""
+    """Generates the dataset metadata .csv files."""
     
     dataset_path = "datasets/release/"
-    generate_dataset_meta(dataset_path)
+    generate_dataset_people_meta(dataset_path)
+    generate_dataset_files_meta(dataset_path)
 
 @task
 def AddDatasetDuration(c):
     """Adds duration information to the dataset."""
     
-    dataset_path     = "datasets/release/meta.csv"
-    new_dataset_path = "datasets/release/meta_duration.csv" 
+    dataset_path     = "datasets/release/files-metadata.csv"
+    new_dataset_path = "datasets/release/files-metadata_duration.csv" 
     add_duration_dataset(dataset_path, new_dataset_path)
 
 @task
 def AddDatasetAmplitude(c):
     """Adds amplitude information to the dataset."""
     
-    dataset_path     = "datasets/release/meta.csv"
-    new_dataset_path = "datasets/release/meta_amplitude.csv" 
+    dataset_path     = "datasets/release/files-metadata.csv"
+    new_dataset_path = "datasets/release/files-metadata_amplitude.csv" 
     add_amplitude_dataset(dataset_path, new_dataset_path)
 
 @task
 def NormalizeDataset(c):
     """Normalizes the audio amplitudes of the dataset."""
     
-    dataset_path     = "datasets/release/meta.csv"
-    new_dataset_path = "datasets/release/meta_normalized.csv" 
+    dataset_path     = "datasets/release/files-metadata.csv"
+    new_dataset_path = "datasets/normalized/" 
     normalize_dataset(dataset_path, new_dataset_path)
 
 @task
