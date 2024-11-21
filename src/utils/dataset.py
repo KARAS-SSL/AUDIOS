@@ -63,6 +63,8 @@ def generate_dataset_files_meta(dataset_folder_path: str):
             continue
 
         for filename in os.listdir(folder_path):
+            if not filename.endswith(".wav"):
+                continue  # Skip non-wav files
             audio_path = os.path.join("fake_voices", folder, filename)  # relative path inside the dataset
             files.append([audio_path, speaker_name, speaker_id, speaker_gender, "spoof"])
 
@@ -70,7 +72,7 @@ def generate_dataset_files_meta(dataset_folder_path: str):
     for folder in os.listdir(real_audios_path):
         folder_path = os.path.join(real_audios_path, folder)
         if not os.path.isdir(folder_path):
-            continue  # Skip non-directories
+            continue
 
         try:
             speaker_name, speaker_id, *_ = folder.split("_")
@@ -80,6 +82,8 @@ def generate_dataset_files_meta(dataset_folder_path: str):
             continue
 
         for filename in os.listdir(folder_path):
+            if not filename.endswith(".wav"):
+                continue
             audio_path = os.path.join("real_voices", folder, filename)
             files.append([audio_path, speaker_name, speaker_id, speaker_gender, "bona-fide"])
 
