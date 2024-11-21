@@ -283,46 +283,67 @@ def split_dataset(full_df, pretext_train_percentage, pretext_val_percentage, dow
 
 
 # Function to split the full dataset
-def split_full_dataset(dataset_meta_path, pre_train_percentage, pre_val_percentage, down_train_percentage, down_val_percentage, down_test_percentage, random_state):
-    print(f"Splitting dataset {dataset_meta_path}...") 
+def split_full_dataset(people_dataset_meta_path, files_dataset_meta_path, pre_train_percentage, pre_val_percentage, down_train_percentage, down_val_percentage, down_test_percentage, random_state):
+    print(f"Splitting dataset {people_dataset_meta_path}...") 
 
     if(pre_train_percentage + pre_val_percentage + down_train_percentage + down_val_percentage + down_test_percentage != 1):
         raise Exception("Sum of pretain train and val and downstream train, val and test percentages must be equal to 1")
 
     # Full dataset
-    full_df     = pd.read_csv(dataset_meta_path, keep_default_na=False)
-    full_df     = full_df.where(full_df['spoof_count'] > 0).dropna()
-    no_spoof_df = full_df.where(full_df['spoof_count'] == 0).dropna() # people with no spoof audios are separated for the downstream test
+    full_df     = pd.read_csv(people_dataset_meta_path, keep_default_na=False)
+    spoofed_df  = full_df.loc[full_df['spoof_count'] > 0]
+    no_spoof_df = full_df.loc[full_df['spoof_count'] == 0]  # people with no spoof audios are separated for the downstream test
 
     # Split full dataset in male and female to make sure training datasets are balanced
-    male_df   = full_df.where(full_df['gender'] == 'M').dropna()
-    female_df = full_df.where(full_df['gender'] == 'F').dropna()
+    male_df   = spoofed_df.loc[spoofed_df['gender'] == 'M']
+    female_df = spoofed_df.loc[spoofed_df['gender'] == 'F']
 
     # Split male and female datasets in pretext train, pretext val, downstream train, downstream val and downstream test
     male_split   = split_dataset(male_df, pre_train_percentage, pre_val_percentage, down_train_percentage, down_val_percentage, down_test_percentage, random_state)
     female_split = split_dataset(female_df, pre_train_percentage, pre_val_percentage, down_train_percentage, down_val_percentage, down_test_percentage, random_state)
 
     # Merge male and female split datasets
-    pretext_train_df    = pd.concat([male_split[0], female_split[0]])
-    pretext_val_df      = pd.concat([male_split[1], female_split[1]])
-    downstream_train_df = pd.concat([male_split[2], female_split[2]])
-    downstream_val_df   = pd.concat([male_split[3], female_split[3]])
-    downstream_test_df  = pd.concat([male_split[4], female_split[4], no_spoof_df])
+    people_pretext_train_df    = pd.concat([male_split[0], female_split[0]])
+    people_pretext_val_df      = pd.concat([male_split[1], female_split[1]])
+    people_downstream_train_df = pd.concat([male_split[2], female_split[2]])
+    people_downstream_val_df   = pd.concat([male_split[3], female_split[3]])
+    people_downstream_test_df  = pd.concat([male_split[4], female_split[4], no_spoof_df])
 
-    # Save train, val and test datasets
-    dataset_folder        = os.path.dirname(dataset_meta_path)
-    pretext_train_path    = os.path.join(dataset_folder, "people-pretext_train.csv")
-    pretext_val_path      = os.path.join(dataset_folder, "people-pretext_val.csv")
-    downstream_train_path = os.path.join(dataset_folder, "people-downstream_train.csv")
-    downstream_val_path   = os.path.join(dataset_folder, "people-downstream_val.csv")
-    downstream_test_path  = os.path.join(dataset_folder, "people-downstream_test.csv")
+    # Split files dataset based on people dataset
+    files_full_df             = pd.read_csv(files_dataset_meta_path, keep_default_na=False)
+    files_pretext_train_df    = files_full_df.loc[files_full_df['id'].isin(people_pretext_train_df['id'])]
+    files_pretext_val_df      = files_full_df.loc[files_full_df['id'].isin(people_pretext_val_df['id'])]
+    files_downstream_train_df = files_full_df.loc[files_full_df['id'].isin(people_downstream_train_df['id'])]
+    files_downstream_val_df   = files_full_df.loc[files_full_df['id'].isin(people_downstream_val_df['id'])]
+    files_downstream_test_df  = files_full_df.loc[files_full_df['id'].isin(people_downstream_test_df['id'])]
+
+    # Save pretext and downstream datasets
+    dataset_folder               = os.path.dirname(people_dataset_meta_path)
+
+    people_pretext_train_path    = os.path.join(dataset_folder, "people-pretext_train.csv")
+    people_pretext_val_path      = os.path.join(dataset_folder, "people-pretext_val.csv")
+    people_downstream_train_path = os.path.join(dataset_folder, "people-downstream_train.csv")
+    people_downstream_val_path   = os.path.join(dataset_folder, "people-downstream_val.csv")
+    people_downstream_test_path  = os.path.join(dataset_folder, "people-downstream_test.csv")
+
+    files_pretext_train_path     = os.path.join(dataset_folder, "files-pretext_train.csv")
+    files_pretext_val_path       = os.path.join(dataset_folder, "files-pretext_val.csv")
+    files_downstream_train_path  = os.path.join(dataset_folder, "files-downstream_train.csv")
+    files_downstream_val_path    = os.path.join(dataset_folder, "files-downstream_val.csv")
+    files_downstream_test_path   = os.path.join(dataset_folder, "files-downstream_test.csv")
    
-    print(f"Saving split datasets in {dataset_folder}...")
-    pretext_train_df.to_csv(pretext_train_path, index=False)
-    pretext_val_df.to_csv(pretext_val_path, index=False)
-    downstream_train_df.to_csv(downstream_train_path, index=False)
-    downstream_val_df.to_csv(downstream_val_path, index=False)
-    downstream_test_df.to_csv(downstream_test_path, index=False)
+    print(f"Saving split datasets in {dataset_folder}/...")
+    people_pretext_train_df.to_csv(people_pretext_train_path, index=False)
+    people_pretext_val_df.to_csv(people_pretext_val_path, index=False)
+    people_downstream_train_df.to_csv(people_downstream_train_path, index=False)
+    people_downstream_val_df.to_csv(people_downstream_val_path, index=False)
+    people_downstream_test_df.to_csv(people_downstream_test_path, index=False)
+
+    files_pretext_train_df.to_csv(files_pretext_train_path, index=False)
+    files_pretext_val_df.to_csv(files_pretext_val_path, index=False)
+    files_downstream_train_df.to_csv(files_downstream_train_path, index=False)
+    files_downstream_val_df.to_csv(files_downstream_val_path, index=False)
+    files_downstream_test_df.to_csv(files_downstream_test_path, index=False)
 
     print("Done!")
 
