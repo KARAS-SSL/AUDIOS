@@ -46,7 +46,7 @@ def audio_amplitude(filename: str, dataset_folder_path: str) -> float | None:
 def generate_dataset_files_meta(dataset_folder_path: str):
     fake_audios_path = os.path.join(dataset_folder_path, "fake_voices")
     real_audios_path = os.path.join(dataset_folder_path, "real_voices")
-    files = {}
+    files = []
 
     # Process fake audios
     for folder in os.listdir(fake_audios_path):
@@ -63,13 +63,7 @@ def generate_dataset_files_meta(dataset_folder_path: str):
 
         for filename in os.listdir(folder_path):
             audio_path = os.path.join("fake_voices", folder, filename)  # relative path inside the dataset
-            # files.append([audio_path, speaker_name, speaker_id, speaker_gender, "spoof"])
-            files[audio_path] = {
-                "speaker": speaker_name,
-                "id": speaker_id,
-                "gender": speaker_gender,
-                "label": "spoof"
-            }
+            files.append([audio_path, speaker_name, speaker_id, speaker_gender, "spoof"])
 
     # Process real audios
     for folder in os.listdir(real_audios_path):
@@ -86,13 +80,7 @@ def generate_dataset_files_meta(dataset_folder_path: str):
 
         for filename in os.listdir(folder_path):
             audio_path = os.path.join("real_voices", folder, filename)
-            # files.append([audio_path, speaker_name, speaker_id, speaker_gender, "bona-fide"])
-            files[audio_path] = {
-                "speaker": speaker_name,
-                "id": speaker_id,
-                "gender": speaker_gender,
-                "label": "bona-fide"
-            }
+            files.append([audio_path, speaker_name, speaker_id, speaker_gender, "bona-fide"])
 
     # Write metadata to CSV
     fields = ["file", "speaker", "id", "gender", "label"]
@@ -159,6 +147,9 @@ def generate_dataset_people_meta(dataset_folder_path: str) -> None:
                 "bonafide_count": len(files),
                 "bonafide_folder": os.path.join("real_voices", folder),
             }
+
+    # Convert the dictionary to a list of lists
+    people = [[k, v["gender"], v["id"], v["spoof_count"], v["bonafide_count"], v["spoof_folder"], v["bonafide_folder"]] for k, v in people.items()]
 
     # Write metadata to CSV
     fields = ["person", "gender", "id", "spoof_count", "bonafide_count", "spoof_folder", "bonafide_folder"]
