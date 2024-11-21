@@ -30,8 +30,8 @@ def AddDatasetDuration(c):
 def AddDatasetAmplitude(c):
     """Adds amplitude information to the dataset."""
     
-    dataset_path     = "datasets/release/files-metadata.csv"
-    new_dataset_path = "datasets/release/files-metadata_amplitude.csv" 
+    dataset_path     = "datasets/release/files-metadata_duration.csv"
+    new_dataset_path = "datasets/release/files-metadata_duration_amplitude.csv" 
     add_amplitude_dataset(dataset_path, new_dataset_path)
 
 @task

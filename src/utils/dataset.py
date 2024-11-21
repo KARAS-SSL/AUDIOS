@@ -252,6 +252,7 @@ def normalize_dataset(dataset_meta_path: str, new_dataset_folder_path: str, targ
 
     # Generate new csv files for the normalized dataset
     generate_dataset_people_meta(new_dataset_folder_path)
+    generate_dataset_files_meta(new_dataset_folder_path)
 
     print("Dataset normalized. New dataset saved to ", new_dataset_folder_path)
 
