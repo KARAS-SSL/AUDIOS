@@ -2,7 +2,7 @@
 import os
 from fabric import task
 
-from src.utils.dataset    import add_duration_dataset, add_amplitude_dataset, balance_dataset, display_info_dataset, generate_dataset_files_meta, generate_dataset_people_meta, normalize_dataset
+from src.utils.dataset    import add_duration_dataset, add_amplitude_dataset, balance_dataset, display_info_dataset, generate_dataset_files_meta, generate_dataset_people_meta, normalize_dataset, split_full_dataset
 from src.utils.embeddings import generate_embeddings_wav2vec
 
 # Set the seed value all over the place to make this reproducible
@@ -41,6 +41,37 @@ def NormalizeDataset(c):
     dataset_path     = "datasets/release/files-metadata.csv"
     new_dataset_path = "datasets/normalized/" 
     normalize_dataset(dataset_path, new_dataset_path)
+
+@task
+def SplitDataset(c):
+    """Splits the dataset into pretext (training and validation) and downstream (training, validation and test) sets."""
+
+    people_dataset_path = "datasets/normalized/people-metadata.csv"
+    files_dataset_path  = "datasets/normalized/files-metadata.csv"
+
+    # Full dataset: 60% pretrain, 40% downstream
+    pretext_percentage    = 0.6
+    downstream_percentage = 0.4
+
+    # Pretext: 80% train, 20% val
+    pretext_train_percentage = pretext_percentage * 0.8
+    pretext_val_percentage   = pretext_percentage * 0.2
+
+    # Downstream: 70% train, 20% val, 10% test
+    downstream_train_percentage = downstream_percentage * 0.7
+    downstream_val_percentage   = downstream_percentage * 0.2
+    downstream_test_percentage  = downstream_percentage * 0.1
+
+    split_full_dataset(
+        people_dataset_path,
+        files_dataset_path,
+        pretext_train_percentage,
+        pretext_val_percentage,
+        downstream_train_percentage,
+        downstream_val_percentage,
+        downstream_test_percentage,
+        randomness_seed
+    )
 
 @task
 def BalanceDataset(c):
