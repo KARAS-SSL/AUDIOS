@@ -4,11 +4,14 @@ from typing import List
 import pandas as pd
 import torch
 import torchaudio
+from multipledispatch import dispatch
 from sklearn.utils import resample
 from tqdm import tqdm
 from transformers import AutoModelForCTC, AutoProcessor, Wav2Vec2ForCTC, Wav2Vec2Processor
 
 
+# Function to generate embeddings for a given dataset
+@dispatch(str, int, str, str)
 def generate_embeddings_wav2vec(dataset_meta_path: str, target_sample_rate: int, model_id: str, embeddings_folder_path: str) -> None:
     dataset_folder_path = os.path.dirname(dataset_meta_path)
     dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
@@ -17,6 +20,8 @@ def generate_embeddings_wav2vec(dataset_meta_path: str, target_sample_rate: int,
     processor  = Wav2Vec2Processor.from_pretrained(model_id)
     model      = Wav2Vec2ForCTC.from_pretrained(model_id) 
     model.eval()
+
+    print(f"Generating embeddings for {dataset_meta_path}...")
 
     for filepath in tqdm(dataset_df['file']):
         audio_path  = os.path.join(dataset_folder_path, filepath)
@@ -43,3 +48,12 @@ def generate_embeddings_wav2vec(dataset_meta_path: str, target_sample_rate: int,
 
         torch.save(embeddings, output_path)
     print(f"Embeddings saved to {embeddings_folder_path}") 
+
+
+# Function to generate embeddings for a list of datasets
+@dispatch(list, int, str, str)
+def generate_embeddings_wav2vec(dataset_meta_path: List[str], target_sample_rate: int, model_id: str, embeddings_folder_path: str) -> None:
+    for meta_path in dataset_meta_path:
+        generate_embeddings_wav2vec(meta_path, target_sample_rate, model_id, embeddings_folder_path)
+    
+    print("All embeddings generated!")

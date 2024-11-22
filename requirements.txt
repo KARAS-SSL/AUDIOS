@@ -2,6 +2,7 @@ ipykernel
 fabric
 librosa
 matplotlib
+multipledispatch
 numpy
 pandas
 seaborn

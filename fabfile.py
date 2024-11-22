@@ -88,7 +88,7 @@ def GenerateEmbeddingsWav2vec2(c):
     """Generates embeddings for the dataset using Wav2vec."""
 
     # Dataset
-    dataset_path      = "datasets/normalized/files-downstream_val.csv"
+    dataset_path      = ["datasets/normalized/files-downstream_val copy.csv", "datasets/normalized/files-downstream_test copy.csv"]
     sample_rate       = 16000
 
     # Which model to use:
@@ -100,4 +100,3 @@ def GenerateEmbeddingsWav2vec2(c):
     embeddings_path = "embeddings/wav2vec/" + model_id.replace("/", "-")
 
     generate_embeddings_wav2vec(dataset_path, sample_rate, model_id, embeddings_path)
-
