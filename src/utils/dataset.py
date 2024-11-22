@@ -91,7 +91,7 @@ def generate_dataset_files_meta(dataset_folder_path: str):
     # Write metadata to CSV
     fields = ["file", "speaker", "id", "gender", "label"]
     output_file = os.path.join(dataset_folder_path, "files-metadata.csv")
-    pd.DataFrame(files, columns=fields).to_csv(output_file, index=False)
+    pd.DataFrame(files, columns=fields).sort_values("file").to_csv(output_file, index=False)
     print(f"Metadata CSV written to {output_file}")
 
 
@@ -160,7 +160,7 @@ def generate_dataset_people_meta(dataset_folder_path: str) -> None:
     # Write metadata to CSV
     fields = ["person", "gender", "id", "spoof_count", "bonafide_count", "spoof_folder", "bonafide_folder"]
     output_file = os.path.join(dataset_folder_path, "people-metadata.csv")
-    pd.DataFrame(people, columns=fields).to_csv(output_file, index=False)
+    pd.DataFrame(people, columns=fields).sort_values("person").to_csv(output_file, index=False)
     print(f"Metadata CSV written to {output_file}")
 
 
