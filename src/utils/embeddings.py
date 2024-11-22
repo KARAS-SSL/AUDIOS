@@ -3,11 +3,11 @@ from typing import List
 
 import pandas as pd
 import torch
-import torchaudio
 from multipledispatch import dispatch
 from sklearn.utils import resample
 from tqdm import tqdm
 from transformers import AutoModelForCTC, AutoProcessor, Wav2Vec2ForCTC, Wav2Vec2Processor
+import librosa
 
 
 # Function to generate embeddings for a given dataset
@@ -28,11 +28,11 @@ def generate_embeddings_wav2vec(dataset_meta_path: str, target_sample_rate: int,
         output_path = os.path.join(embeddings_folder_path, f"{os.path.splitext(filepath)[0]}.pt")
 
         # Load audio
-        waveform, sample_rate = torchaudio.load(audio_path)
+        waveform, sample_rate = librosa.load(audio_path, sr=None)  # Load with the original sample rate
 
         # Resample if needed (Wav2Vec2 expects 16 kHz)
         if sample_rate != target_sample_rate:
-            waveform = torchaudio.transforms.Resample(orig_freq=sample_rate, new_freq=target_sample_rate)(waveform)
+          waveform = librosa.resample(waveform, orig_sr=sample_rate, target_sr=target_sample_rate)
 
         # Convert waveform to model input
         input_values = processor(waveform.squeeze().numpy(), sampling_rate=target_sample_rate, return_tensors="pt").input_values
