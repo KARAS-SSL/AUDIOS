@@ -1,4 +1,5 @@
 import os
+from typing import Tuple
 
 import librosa
 import numpy as np
@@ -14,7 +15,7 @@ tqdm.pandas()
 # AUDIO FILE PROPERTIES FUNCTIONS
 
 # Function to load an audio file
-def load_audio_file(filename: str, dataset_folder_path: str) -> np.ndarray | None:
+def load_audio_file(filename: str, dataset_folder_path: str) -> Tuple[np.ndarray, int | float] | None:
     try:
         audio_path = os.path.join(dataset_folder_path, filename)
         return librosa.load(audio_path, sr=None)
@@ -266,7 +267,15 @@ def normalize_dataset(dataset_meta_path: str, new_dataset_folder_path: str, targ
 # DATASET SPLIT FUNCTIONS
 
 # Function to split a dataset in pretext and downstream
-def split_dataset(full_df, pretext_train_percentage, pretext_val_percentage, downstream_train_percentage, downstream_val_percentage, downstream_test_percentage, random_state):
+def split_dataset(
+    full_df: pd.DataFrame,
+    pretext_train_percentage: float,
+    pretext_val_percentage: float,
+    downstream_train_percentage: float,
+    downstream_val_percentage: float,
+    downstream_test_percentage: float,
+    random_state: int
+) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     # Split dataset in pretext and downstream
     pretext_percentage = pretext_train_percentage + pretext_val_percentage
     pretext_df, downstream_df = train_test_split(full_df, train_size=pretext_percentage, random_state=random_state)
@@ -287,7 +296,16 @@ def split_dataset(full_df, pretext_train_percentage, pretext_val_percentage, dow
 
 
 # Function to split the full dataset
-def split_full_dataset(people_dataset_meta_path, files_dataset_meta_path, pre_train_percentage, pre_val_percentage, down_train_percentage, down_val_percentage, down_test_percentage, random_state):
+def split_full_dataset(
+    people_dataset_meta_path: str,
+    files_dataset_meta_path: str,
+    pre_train_percentage: float,
+    pre_val_percentage: float,
+    down_train_percentage: float,
+    down_val_percentage: float,
+    down_test_percentage: float,
+    random_state: int
+) -> None:
     print(f"Splitting dataset {people_dataset_meta_path}...") 
 
     if(pre_train_percentage + pre_val_percentage + down_train_percentage + down_val_percentage + down_test_percentage != 1):
@@ -350,69 +368,6 @@ def split_full_dataset(people_dataset_meta_path, files_dataset_meta_path, pre_tr
     files_downstream_test_df.to_csv(files_downstream_test_path, index=False)
 
     print("Done!")
-
-
-# ----------------------------------------------------------------
-# Balances the dataset by removing samples with low duration
-def balance_dataset(dataset_path, new_dataset_path, imbalance_threshold, seed):
-    dataset_df = pd.read_csv(dataset_path, keep_default_na=False)
-
-    # Per speaker counts
-    spoof_per_speaker = (
-        dataset_df[dataset_df.label == "spoof"].groupby("speaker").duration.count()
-    )
-    bonafide_per_speaker = (
-        dataset_df[dataset_df.label == "bona-fide"].groupby("speaker").duration.count()
-    )
-
-    # Combine counts into a single DataFrame and fill NaN with 0
-    counts_df = pd.DataFrame(
-        {"spoof_count": spoof_per_speaker, "bona_fide_count": bonafide_per_speaker}
-    ).fillna(0)
-
-    # Calculate total count and spoof ratio for each speaker
-    counts_df["total"] = counts_df["spoof_count"] + counts_df["bona_fide_count"]
-    counts_df["spoof_ratio"] = counts_df["spoof_count"] / counts_df["total"]
-
-    # Initialize list to hold balanced data
-    final_data = []
-
-    for speaker in counts_df.index:
-        speaker_data = dataset_df[dataset_df["speaker"] == speaker]
-
-        # Separate spoof and bonafide samples
-        spoof_samples = speaker_data[speaker_data["label"] == "spoof"]
-        bonafide_samples = speaker_data[speaker_data["label"] == "bona-fide"]
-
-        # Calculate the spoof ratio for this speaker
-        spoof_ratio = counts_df.loc[speaker, "spoof_ratio"]
-
-        # Check if the speaker's spoof/bona-fide ratio is within the threshold
-        if spoof_ratio < imbalance_threshold or spoof_ratio > (1 - imbalance_threshold):
-            # Balance spoof and bona-fide samples by truncating the excess
-            target_count = min(len(spoof_samples), len(bonafide_samples))
-            spoof_samples = spoof_samples.sample(n=target_count, random_state=seed)
-            bonafide_samples = bonafide_samples.sample(
-                n=target_count, random_state=seed
-            )
-
-        # Append both spoof and bona-fide samples for this speaker
-        final_data.append(pd.concat([spoof_samples, bonafide_samples]))
-
-    # Concatenate all balanced samples and sort by numeric part of 'file' column
-    balanced_dataset_df = pd.concat(final_data)
-    balanced_dataset_df["file_index"] = (
-        balanced_dataset_df["file"].str.extract(r"(\d+)").astype(int)
-    )
-    balanced_dataset_df = (
-        balanced_dataset_df.sort_values(by="file_index")
-        .drop(columns="file_index")
-        .reset_index(drop=True)
-    )
-
-    balanced_dataset_df.to_csv(new_dataset_path, index=False)
-    print("Balanced dataset saved to", new_dataset_path)
-
 
 # ----------------------------------------------------------------
 

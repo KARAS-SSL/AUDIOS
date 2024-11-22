@@ -1,28 +1,26 @@
-
 import os
-import pandas as pd
-from tqdm import tqdm
+from typing import List
 
+import pandas as pd
 import torch
 import torchaudio
-from transformers import AutoProcessor, AutoModelForCTC
-from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 from sklearn.utils import resample
+from tqdm import tqdm
+from transformers import AutoModelForCTC, AutoProcessor, Wav2Vec2ForCTC, Wav2Vec2Processor
 
-def generate_embeddings_wav2vec(dataset_path, target_sample_rate, model_id, embeddings_path):
-    dataset_df = pd.read_csv(dataset_path)
-   
+
+def generate_embeddings_wav2vec(dataset_meta_path: str, target_sample_rate: int, model_id: str, embeddings_folder_path: str) -> None:
+    dataset_folder_path = os.path.dirname(dataset_meta_path)
+    dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
+
     # Load Model in evaluation mode
-    processor   = Wav2Vec2Processor.from_pretrained(model_id)
-    model       = Wav2Vec2ForCTC.from_pretrained(model_id) 
+    processor  = Wav2Vec2Processor.from_pretrained(model_id)
+    model      = Wav2Vec2ForCTC.from_pretrained(model_id) 
     model.eval()
 
-    for i in tqdm(range(len(dataset_df))): 
-        audio_name  = dataset_df['file'][i] 
-        if int(audio_name.split(".")[0]) < 28604: continue
-    
-        audio_path  = os.path.join(os.path.dirname(dataset_path), audio_name)
-        output_path = os.path.join(embeddings_path, f"{audio_name}_embedding.pt")
+    for filepath in tqdm(dataset_df['file']):
+        audio_path  = os.path.join(dataset_folder_path, filepath)
+        output_path = os.path.join(embeddings_folder_path, f"{os.path.splitext(filepath)[0]}.pt")
 
         # Load audio
         waveform, sample_rate = torchaudio.load(audio_path)
@@ -39,6 +37,9 @@ def generate_embeddings_wav2vec(dataset_path, target_sample_rate, model_id, embe
             embeddings = model(input_values).logits  # Access the logits or first element
 
         # Save embeddings
+        output_folder_path = os.path.dirname(output_path)
+        if not os.path.exists(output_folder_path):
+            os.makedirs(output_folder_path, exist_ok=True)
+
         torch.save(embeddings, output_path)
-        print(f"Embeddings saved to {output_path}") 
-    
+    print(f"Embeddings saved to {embeddings_folder_path}") 
