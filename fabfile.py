@@ -35,11 +35,11 @@ def AddDatasetAmplitude(c):
     add_amplitude_dataset(dataset_path, new_dataset_path)
 
 @task
-def NormalizeDataset(c):
+def NormalizeDataset(c, use_same_dir=False):
     """Normalizes the audio amplitudes of the dataset."""
     
     dataset_path     = "datasets/release/files-metadata.csv"
-    new_dataset_path = "datasets/normalized/" 
+    new_dataset_path = "datasets/release/" if use_same_dir else "datasets/normalized/"
     normalize_dataset(dataset_path, new_dataset_path)
 
 @task
@@ -98,7 +98,7 @@ def GenerateEmbeddingsWav2vec2(c):
 
     # Which model to use:
     model_id_wav2vec  = "facebook/wav2vec2-base-960h"
-    model_id_xlsr     = "jonatasgrosman/wav2vec2-large-xlsr-53-english"
+    model_id_xlsr     = "jonatasgrosman/wav2vec2-large-xlsr-53-portuguese"
     model_id          = model_id_wav2vec
 
     # Embeddings output folder
@@ -128,7 +128,7 @@ def GenerateEmbeddingsHubert(c):
     sample_rate         = 16000
 
     # Which model to use:
-    model_id = "" # TODO: insert model name here
+    model_id = "facebook/hubert-base-ls960"
 
     # Embeddings output folder
     if isinstance(dataset_meta_path, str):
