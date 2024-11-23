@@ -340,19 +340,23 @@ def split_full_dataset(
     files_downstream_test_df  = files_full_df.loc[files_full_df['id'].isin(people_downstream_test_df['id'])]
 
     # Save pretext and downstream datasets
-    dataset_folder               = os.path.dirname(people_dataset_meta_path)
+    dataset_folder               = os.path.join(os.path.dirname(people_dataset_meta_path), "splits")
+    dataset_folder_by_people     = os.path.join(dataset_folder, "by_people")
+    dataset_folder_by_file       = os.path.join(dataset_folder, "by_file")
+    if not os.path.exists(dataset_folder_by_people): os.makedirs(dataset_folder_by_people)
+    if not os.path.exists(dataset_folder_by_file): os.makedirs(dataset_folder_by_file)
 
-    people_pretext_train_path    = os.path.join(dataset_folder, "people-pretext_train.csv")
-    people_pretext_val_path      = os.path.join(dataset_folder, "people-pretext_val.csv")
-    people_downstream_train_path = os.path.join(dataset_folder, "people-downstream_train.csv")
-    people_downstream_val_path   = os.path.join(dataset_folder, "people-downstream_val.csv")
-    people_downstream_test_path  = os.path.join(dataset_folder, "people-downstream_test.csv")
+    people_pretext_train_path    = os.path.join(dataset_folder_by_people, "people-pretext_train.csv")
+    people_pretext_val_path      = os.path.join(dataset_folder_by_people, "people-pretext_val.csv")
+    people_downstream_train_path = os.path.join(dataset_folder_by_people, "people-downstream_train.csv")
+    people_downstream_val_path   = os.path.join(dataset_folder_by_people, "people-downstream_val.csv")
+    people_downstream_test_path  = os.path.join(dataset_folder_by_people, "people-downstream_test.csv")
 
-    files_pretext_train_path     = os.path.join(dataset_folder, "files-pretext_train.csv")
-    files_pretext_val_path       = os.path.join(dataset_folder, "files-pretext_val.csv")
-    files_downstream_train_path  = os.path.join(dataset_folder, "files-downstream_train.csv")
-    files_downstream_val_path    = os.path.join(dataset_folder, "files-downstream_val.csv")
-    files_downstream_test_path   = os.path.join(dataset_folder, "files-downstream_test.csv")
+    files_pretext_train_path     = os.path.join(dataset_folder_by_file, "files-pretext_train.csv")
+    files_pretext_val_path       = os.path.join(dataset_folder_by_file, "files-pretext_val.csv")
+    files_downstream_train_path  = os.path.join(dataset_folder_by_file, "files-downstream_train.csv")
+    files_downstream_val_path    = os.path.join(dataset_folder_by_file, "files-downstream_val.csv")
+    files_downstream_test_path   = os.path.join(dataset_folder_by_file, "files-downstream_test.csv")
    
     print(f"Saving split datasets in {dataset_folder}/...")
     people_pretext_train_df.to_csv(people_pretext_train_path, index=False)
@@ -377,18 +381,3 @@ def display_info_dataset(dataset_path):
     # Read dataset
     dataset_df = pd.read_csv(dataset_path, keep_default_na=False)
     print(dataset_df)
-
-    # Dataset duration
-    # print(dataset_df.groupby("label")['duration'].sum().sort_values(ascending=False) / 3600, end="\n\n")
-
-    # Spoof and bonafide per speaker
-    # spoof_per_speaker    = dataset_df[dataset_df.label == 'spoof'].groupby("speaker").duration.count()
-    # bonafide_per_speaker = dataset_df[dataset_df.label == 'bona-fide'].groupby("speaker").duration.count()
-    # counts_df = pd.DataFrame({
-    #     'spoof_count': spoof_per_speaker,
-    #     'bona_fide_count': bonafide_per_speaker
-    # }).fillna(0)
-    # counts_df['total']       = counts_df['spoof_count'] + counts_df['bona_fide_count']
-    # counts_df['spoof_ratio'] = counts_df['spoof_count'] / counts_df['total']
-    # counts_df.sort_values("spoof_ratio")
-    # print(counts_df)
