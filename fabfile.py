@@ -128,7 +128,7 @@ def GenerateEmbeddingsHubert(c):
     sample_rate         = 16000
 
     # Which model to use:
-    model_id = "facebook/hubert-base-ls960"
+    model_id = "facebook/hubert-large-ls960-ft"
 
     # Embeddings output folder
     if isinstance(dataset_meta_path, str):
@@ -141,5 +141,4 @@ def GenerateEmbeddingsHubert(c):
         for path in embeddings_path:
             os.makedirs(path, exist_ok=True)
 
-    os.makedirs(embeddings_path, exist_ok=True)  
     generate_embeddings_hubert(dataset_folder_path, dataset_meta_path, sample_rate, model_id, embeddings_path)
