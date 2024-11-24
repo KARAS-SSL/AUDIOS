@@ -348,7 +348,7 @@ def split_full_dataset(
 
     people_pretext_train_path    = os.path.join(dataset_folder_by_people, "people-pretext_train.csv")
     people_pretext_val_path      = os.path.join(dataset_folder_by_people, "people-pretext_val.csv")
-    people_downstream_train_path = os.path.join(dataset_folder_by_people, "people-downstream_train.csv")
+    people_downstream_train_path = os.path.join(dataset_folder_by_people,"people-downstream_train.csv")
     people_downstream_val_path   = os.path.join(dataset_folder_by_people, "people-downstream_val.csv")
     people_downstream_test_path  = os.path.join(dataset_folder_by_people, "people-downstream_test.csv")
 

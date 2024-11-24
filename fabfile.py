@@ -39,7 +39,7 @@ def NormalizeDataset(c):
     """Normalizes the audio amplitudes of the dataset."""
     
     dataset_path     = "datasets/release/files-metadata.csv"
-    new_dataset_path = "datasets/normalized/" 
+    new_dataset_path = "datasets/release/" 
     normalize_dataset(dataset_path, new_dataset_path)
 
 @task
