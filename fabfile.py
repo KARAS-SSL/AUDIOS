@@ -4,7 +4,7 @@ from fabric import task
 
 from src.utils.dataset    import add_duration_dataset, add_amplitude_dataset, display_info_dataset, generate_dataset_files_meta, generate_dataset_people_meta, normalize_dataset, split_full_dataset
 
-from src.utils.embeddings import generate_embeddings_wav2vec, generate_embeddings_hubert
+from src.utils.embeddings import generate_embeddings_wav2vec, generate_embeddings_wav2vec2_bert, generate_embeddings_hubert
 
 from src.train.mlp.train_mlp import train_mlp 
 from src.train.mlp.test_mlp import test_mlp 
@@ -137,7 +137,7 @@ def GenerateEmbeddingsWav2vec2BERT(c):
     sample_rate         = 16000
 
     # Which model to use:
-    model_id = "facebook/w2v-bert-2.0"
+    model_id = "hf-audio/wav2vec2-bert-CV16-en"
 
     # Embeddings output folder
     if isinstance(dataset_meta_path, str):
@@ -150,7 +150,7 @@ def GenerateEmbeddingsWav2vec2BERT(c):
         for path in embeddings_path:
             os.makedirs(path, exist_ok=True)
 
-    generate_embeddings_wav2vec_bert(dataset_folder_path, dataset_meta_path, sample_rate, model_id, embeddings_path)
+    generate_embeddings_wav2vec2_bert(dataset_folder_path, dataset_meta_path, sample_rate, model_id, embeddings_path)
 
     
 @task
@@ -188,13 +188,13 @@ def GenerateEmbeddingsHubert(c):
 @task
 def VisualizeEmbeddingsUMAP(c):
     train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base-960h/files-downstream_train"
-    visualize_embeddings_umap(train_embeddings_folder_path, randomness_seed) 
+    visualize_embeddings_umap(train_embeddings_folder_path) 
     pass
 
 @task
 def VisualizeEmbeddingsTSNE(c):
     train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base-960h/files-downstream_train" 
-    visualize_embeddings_tsne(train_embeddings_folder_path, randomness_seed) 
+    visualize_embeddings_tsne(train_embeddings_folder_path) 
     pass
     
 #----------------------------------------------------------------------------
@@ -211,12 +211,14 @@ def TrainModel(c):
 
     if prediction_head == "mlp":
         hyperparameters = {
-            "epochs": 10,
+            "epochs": 50,
             "batch_size": 32,
-            "learning_rate": 0.001,
-            "patience": 10, 
+            "learning_rate": 0.0001,
+            "patience": 10,
+            "dropout": 0.4,
+            "weight_decay": 0.01,
             "hidden_dim_1": 256,
-            "output_dim": 2 
+            "output_dim": 1 
         }
         train_mlp(train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed, device)
     elif prediction_head == "svm":
@@ -226,9 +228,9 @@ def TrainModel(c):
 def TestModel(c):
     
     test_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base-960h/files-downstream_test"
-    model_folder                  = "runs/run0"
-
-    prediction_head = "mlp"
+    model_folder                  = "runs/run11"
+    prediction_head               = "mlp"
+    
     if prediction_head == "mlp":
         test_mlp(test_embeddings_folder_path, model_folder, use_best_model=True, device=device)
     elif prediction_head == "svm":

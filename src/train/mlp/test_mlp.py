@@ -1,7 +1,8 @@
-
+import os
 import torch
 import torch.nn as nn
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
+from sklearn.metrics import roc_curve, auc
 import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,12 +15,12 @@ import json
 # Function to load the model checkpoint based on the run path and flag
 def load_model(run_path: str, use_best_model: bool, model: nn.Module, device: str):
     # Determine which checkpoint to load
-    checkpoint_file = "best_model.pt" if use_best_model else "final_model.pt"
+    checkpoint_file = "best_model.pth" if use_best_model else "final_model.pth"
     checkpoint_path = os.path.join(run_path, checkpoint_file)
 
     if os.path.exists(checkpoint_path):
         checkpoint = torch.load(checkpoint_path, map_location=device)
-        model.load_state_dict(checkpoint['model_state_dict'])
+        model.load_state_dict(checkpoint)
         print(f"Model loaded from {checkpoint_path}")
     else:
         raise FileNotFoundError(f"Checkpoint {checkpoint_file} not found in {run_path}")
@@ -38,10 +39,11 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
     input_dim    = config.get("input_dim", 512)
     hidden_dim_1 = config.get("hidden_dim_1", 256)
     output_dim   = config.get("output_dim", 2)
+    dropout_rate = config.get("dropout", 0.4)
     batch_size   = config.get("batch_size", 32)
 
     # Initialize the model using the hyperparameters from config
-    model = MLP(input_dim=input_dim, hidden_dim=hidden_dim_1, output_dim=output_dim).to(device)
+    model = MLP(input_dim, hidden_dim_1, output_dim, dropout_rate).to(device) 
 
     # Load the model
     model = load_model(run_path, use_best_model, model, device)
@@ -60,14 +62,12 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
         for batch in test_loader:
             inputs, targets = batch
             inputs, targets = inputs.to(device), targets.to(device)  # Move to device
-            outputs = model(inputs)  # Get model outputs
-            
-            # Get the probabilities (for calculating ROC and EER)
-            probs = torch.softmax(outputs, dim=1)[:, 1]  # Assuming binary classification, get the probability for class '1'
-            
-            # Get predicted class
-            _, predicted = torch.max(outputs, 1)
+            outputs = model(inputs).squeeze()  # Get model outputs
 
+            # Get the probabilities (for calculating ROC and EER)
+            probs = torch.sigmoid(outputs)
+            predicted = (probs > 0.5).float()
+            
             # Append true and predicted labels to the lists
             all_true_labels.extend(targets.cpu().numpy())
             all_pred_labels.extend(predicted.cpu().numpy())
@@ -96,9 +96,9 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
     plt.show()
 
     # Compute ROC curve and EER
-    fpr, tpr, thresholds = roc_curve(all_true_labels, all_pred_probs)
-    eer_threshold = thresholds[np.nanargmin(np.abs(fpr - tpr))]  # Find the threshold where FPR equals TPR
-    eer = fpr[np.nanargmin(np.abs(fpr - tpr))]  # Equal Error Rate is the value of FPR at that threshold
+    # fpr, tpr, thresholds = roc_curve(all_true_labels, all_pred_probs)
+    # eer_threshold = thresholds[np.nanargmin(np.abs(fpr - tpr))]  # Find the threshold where FPR equals TPR
+    # eer = fpr[np.nanargmin(np.abs(fpr - tpr))]  # Equal Error Rate is the value of FPR at that threshold
 
     # Prepare metrics for saving
     metrics = {
@@ -106,9 +106,9 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
         'precision': precision,
         'recall': recall,
         'f1_score': f1,
-        'confusion_matrix': conf_matrix.tolist(),  # Convert the confusion matrix to a list
-        'eer': eer,  # Adding EER to the metrics
-        'eer_threshold': eer_threshold  # Adding the threshold at which EER occurs
+        # 'confusion_matrix': conf_matrix.tolist(),  # Convert the confusion matrix to a list
+        # 'eer': eer,  # Adding EER to the metrics
+        # 'eer_threshold': eer_threshold  # Adding the threshold at which EER occurs
     }
 
     # Print the metrics
@@ -116,11 +116,13 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
     print("Precision:", precision)
     print("Recall:", recall)
     print("F1 Score:", f1)
-    print("Confusion Matrix:")
-    print(conf_matrix)
-    print(f"Equal Error Rate (EER): {eer:.4f} at threshold {eer_threshold:.4f}")
+    # print("Confusion Matrix:")
+    # print(conf_matrix)
+    # print(f"Equal Error Rate (EER): {eer:.4f} at threshold {eer_threshold:.4f}")
 
     # Save the metrics to a JSON file
-    metrics_file_path = os.path.join(run_path, "metrics.json")
+    metrics['model'] = 'MLP'
+    metrics['test_dataset'] = test_embeddings_folder_path
+    metrics_file_path = os.path.join(run_path, "test_results.json")
     with open(metrics_file_path, "w") as f:
         json.dump(metrics, f, indent=4)

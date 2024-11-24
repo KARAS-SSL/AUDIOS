@@ -111,15 +111,20 @@ def generate_embeddings_wav2vec(dataset_path:str, metadata_paths:List[str], fr:i
     
 @dispatch(str, str, int, str, str)
 def generate_embeddings_wav2vec2_bert(dataset_path:str, metadata_path:str, fr:int, model_id:str, out_folder:str) -> None:
-    from transformers import Wav2Vec2BertForSequenceClassification, Wav2Vec2Processor
-    generate_embeddings(dataset_path, metadata_path, fr, model_id,out_folder, 
-                        Wav2Vec2BertForSequenceClassification, Wav2Vec2Processor)
+    # from transformers import Wav2Vec2BertForSequenceClassification, AutoFeatureExtractor
+    # generate_embeddings(dataset_path, metadata_path, fr, model_id,out_folder, 
+                        # Wav2Vec2BertForSequenceClassification, AutoFeatureExtractor)
+    from transformers import AutoProcessor, Wav2Vec2BertModel
+    generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, Wav2Vec2BertModel, AutoProcessor)
+
 
 @dispatch(str, list, int, str, list)
 def generate_embeddings_wav2vec2_bert(dataset_path:str, metadata_paths:List[str], fr:int, model_id:str, out_folders:List[str]):
-    from transformers import Wav2Vec2BertForSequenceClassification, Wav2Vec2Processor
-    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, 
-                                 Wav2Vec2BertForSequenceClassification, Wav2Vec2Processor)
+    # from transformers import Wav2Vec2BertForSequenceClassification, AutoFeatureExtractor
+    # generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, 
+                                 # Wav2Vec2BertForSequenceClassification, AutoFeatureExtractor)
+    from transformers import AutoProcessor, Wav2Vec2BertModel
+    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, Wav2Vec2BertModel, AutoProcessor)
 
 @dispatch(str, str, int, str, str)
 def generate_embeddings_hubert(dataset_path: str, metadata_path: str, fr: int, model_id: str, out_folder: str) -> None:
