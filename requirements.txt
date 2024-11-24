@@ -8,6 +8,5 @@ pandas
 seaborn
 soundfile
 torch
-torchaudio
 tqdm
 transformers
