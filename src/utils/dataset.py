@@ -9,6 +9,10 @@ import soundfile as sf
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import Dataset, DataLoader
+from typing import List, Tuple
+
 tqdm.pandas()
 
 
@@ -376,7 +380,6 @@ def split_full_dataset(
 
 # ----------------------------------------------------------------
 
-
 def display_info_dataset(dataset_path):
     print("Dataset info ------")
     # Read dataset
@@ -384,34 +387,65 @@ def display_info_dataset(dataset_path):
     print(dataset_df)
 
 # ----------------------------------------------------------------
-# HEAD PREDICTION FUNCTIONS
+# Dataset constructor and heads loading functions
 
-# Function to load embeddings and labels (MLP)
-def load_embeddings_and_labels(embeddings_folder_path, labels_path):
-    embeddings = []
-    labels = []
-    labels_df = pd.read_csv(labels_path)
+# Custom dataset for loading voice embeddings and their labels.
+class VoiceEmbeddingsDataset(Dataset):
+    def __init__(self, embeddings_folder_path: str):
+        self.data = []
 
-    for index, row in labels_df.iterrows():
-        audio_name = row['file']
-        audio_path = os.path.join(embeddings_folder_path, f"{audio_name}_embedding.pt")
-        embedding = torch.load(audio_path)
-        embeddings.append(embedding)
-        labels.append(row['label'])
+        # Load fake voices (label 0)
+        fake_path = os.path.join(embeddings_folder_path, "fake_voices")
+        self._load_data(fake_path, label=0) 
 
-    return torch.stack(embeddings), torch.tensor(labels)
+        # Load real voices (label 1)
+        real_path = os.path.join(embeddings_folder_path, "real_voices")
+        self._load_data(real_path, label=1)
 
-# Function to load embeddings and labels with NumPy converter (SVM)
-def load_embeddings_and_labels_numpy(embeddings_folder_path, labels_path):
-    embeddings = []
-    labels = []
-    labels_df = pd.read_csv(labels_path)
+    def _load_data(self, folder_path: str, label: int):
+        for person_folder in os.listdir(folder_path):
+            person_path = os.path.join(folder_path, person_folder)
 
-    for index, row in labels_df.iterrows():
-        audio_name = row['file']
-        audio_path = os.path.join(embeddings_folder_path, f"{audio_name}_embedding.pt")
-        embedding = torch.load(audio_path)
-        embeddings.append(embedding)
-        labels.append(row['label'])
+            if not os.path.isdir(person_path):
+                continue  # Skip non-directory files
 
-    return torch.stack(embeddings).numpy(), torch.tensor(labels).numpy()
+            for file in os.listdir(person_path):
+                if file.endswith(".pt"):  # Process only .pt files
+                    embedding_path = os.path.join(person_path, file)
+                    self.data.append((embedding_path, label))
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
+        embedding_path, label = self.data[idx]
+        embedding = torch.load(embedding_path, weights_only=False)
+        return embedding.squeeze(0), label  # Squeeze to remove batch dimension
+
+# DataLoader creation function
+def load_embeddings(
+    embeddings_folder_path: str, 
+    batch_size: int = 32, 
+    shuffle: bool = True, 
+    num_workers: int = 4
+) -> DataLoader:
+    """
+    Create a DataLoader for the voice embeddings dataset.
+    
+    Args:
+        embeddings_folder_path (str): Path to the folder containing embeddings.
+        batch_size (int): Number of samples per batch.
+        shuffle (bool): Whether to shuffle the data.
+        num_workers (int): Number of subprocesses to use for data loading.
+
+    Returns:
+        DataLoader: PyTorch DataLoader for training.
+    """
+    dataset = VoiceEmbeddingsDataset(embeddings_folder_path)
+    dataloader = DataLoader(
+        dataset, 
+        batch_size=batch_size, 
+        shuffle=shuffle, 
+        num_workers=num_workers, 
+    )
+    return dataloader

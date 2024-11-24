@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Callable
 
 import librosa
 import numpy as np
@@ -76,46 +76,57 @@ def generate_embeddings(
 #----------------------------------------------------------------
 # EMBEDDING FUNCTIONS
 
-@dispatch(str, str, int, str, str)
-def generate_embeddings_wav2vec(dataset_folder_path: str, dataset_meta_path: str, target_sample_rate: int, model_id: str, embeddings_folder_path: str) -> None:
-    from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
-    generate_embeddings(dataset_folder_path, dataset_meta_path, target_sample_rate, model_id, embeddings_folder_path, Wav2Vec2ForCTC, Wav2Vec2Processor)
+# Auxiliary function to validate that the number of metadata paths matches the number of output folders.
 
-@dispatch(str, list, int, str, list)
-def generate_embeddings_wav2vec(dataset_folder_path: str, dataset_meta_paths: List[str], target_sample_rate: int, model_id: str, embeddings_folder_paths: List[str]) -> None:
-    from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
-    if len(dataset_meta_paths) != len(embeddings_folder_paths):
-        raise ValueError("The number of dataset meta paths must match the number of embeddings folder paths.")
-    for i in range(len(dataset_meta_paths)):
-        generate_embeddings(dataset_folder_path, dataset_meta_paths[i], target_sample_rate, model_id, embeddings_folder_paths[i], Wav2Vec2ForCTC, Wav2Vec2Processor)
+def validate(metadata_paths: List[str], out_folders: List[str]) -> None:
+    """Validates that the number of metadata paths matches the number of output folders."""
+    if len(metadata_paths) != len(out_folders):
+        raise ValueError("The number of metadata paths must match the number of output folders.")
+
+def generate_embeddings_multiple(
+    dataset_path: str, metadata_paths: List[str], fr: int, model_id: str, out_folders: List[str], 
+    model_class, processor_class
+) -> None:
+    """
+    Handles the generation of embeddings for multiple metadata paths and output folders.
+    """
+    validate(metadata_paths, out_folders)
+    for metadata_path, out_folder in zip(metadata_paths, out_folders):
+        generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, model_class, processor_class)
     print("All embeddings generated!")
 
+# Main functions to generate embeddings #
+
 @dispatch(str, str, int, str, str)
-def generate_embeddings_wav2vec2_bert(dataset_folder_path: str, dataset_meta_path: str, target_sample_rate: int, model_id: str, embeddings_folder_path: str) -> None:
-    from transformers import (Wav2Vec2ForSequenceClassification,
-                              Wav2Vec2Processor)
-    generate_embeddings(dataset_folder_path, dataset_meta_path, target_sample_rate, model_id, embeddings_folder_path, Wav2Vec2ForSequenceClassification, Wav2Vec2Processor)
+def generate_embeddings_wav2vec(dataset_path:str, metadata_path:str, fr:int, model_id:str, out_folder:str) -> None:
+    from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2Processor    
+    generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, 
+                        Wav2Vec2ForSequenceClassification, Wav2Vec2Processor)
 
 @dispatch(str, list, int, str, list)
-def generate_embeddings_wav2vec2_bert(dataset_folder_path: str, dataset_meta_paths: List[str], target_sample_rate: int, model_id: str, embeddings_folder_paths: List[str]) -> None:
-    from transformers import (Wav2Vec2ForSequenceClassification,
-                              Wav2Vec2Processor)
-    if len(dataset_meta_paths) != len(embeddings_folder_paths):
-        raise ValueError("The number of dataset meta paths must match the number of embeddings folder paths.")
-    for i in range(len(dataset_meta_paths)):
-        generate_embeddings(dataset_folder_path, dataset_meta_paths[i], target_sample_rate, model_id, embeddings_folder_paths[i], Wav2Vec2ForSequenceClassification, Wav2Vec2Processor)
-    print("All embeddings generated!")
+def generate_embeddings_wav2vec(dataset_path:str, metadata_paths:List[str], fr:int, model_id:str, out_folders:List[str]):
+    from transformers import Wav2Vec2ForSequenceClassification, Wav2Vec2Processor    
+    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, 
+                                 Wav2Vec2ForSequenceClassification, Wav2Vec2Processor)
     
 @dispatch(str, str, int, str, str)
-def generate_embeddings_hubert(dataset_folder_path: str, dataset_meta_path: str, target_sample_rate: int, model_id: str, embeddings_folder_path: str) -> None:
-    from transformers import HubertForCTC, Wav2Vec2Processor
-    generate_embeddings(dataset_folder_path, dataset_meta_path, target_sample_rate, model_id, embeddings_folder_path, HubertForCTC, Wav2Vec2Processor)
+def generate_embeddings_wav2vec2_bert(dataset_path:str, metadata_path:str, fr:int, model_id:str, out_folder:str) -> None:
+    from transformers import Wav2Vec2BertForSequenceClassification, Wav2Vec2Processor
+    generate_embeddings(dataset_path, metadata_path, fr, model_id,out_folder, 
+                        Wav2Vec2BertForSequenceClassification, Wav2Vec2Processor)
 
 @dispatch(str, list, int, str, list)
-def generate_embeddings_hubert(dataset_folder_path: str, dataset_meta_paths: List[str], target_sample_rate: int, model_id: str, embeddings_folder_paths: List[str]) -> None:
-    from transformers import HubertForCTC, Wav2Vec2Processor
-    if len(dataset_meta_paths) != len(embeddings_folder_paths):
-        raise ValueError("The number of dataset meta paths must match the number of embeddings folder paths.")
-    for i in range(len(dataset_meta_paths)):
-        generate_embeddings(dataset_folder_path, dataset_meta_paths[i], target_sample_rate, model_id, embeddings_folder_paths[i], HubertForCTC, Wav2Vec2Processor)
-    print("All embeddings generated!")
+def generate_embeddings_wav2vec2_bert(dataset_path:str, metadata_paths:List[str], fr:int, model_id:str, out_folders:List[str]):
+    from transformers import Wav2Vec2BertForSequenceClassification, Wav2Vec2Processor
+    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, 
+                                 Wav2Vec2BertForSequenceClassification, Wav2Vec2Processor)
+
+@dispatch(str, str, int, str, str)
+def generate_embeddings_hubert(dataset_path: str, metadata_path: str, fr: int, model_id: str, out_folder: str) -> None:
+    from transformers import HubertForSequenceClassification, AutoFeatureExtractor
+    generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, HubertForSequenceClassification, AutoFeatureExtractor)
+
+@dispatch(str, list, int, str, list)
+def generate_embeddings_hubert(dataset_path: str, metadata_paths: List[str], fr: int, model_id: str, out_folders: List[str]):
+    from transformers import HubertForSequenceClassification, AutoFeatureExtractor
+    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, HubertForSequenceClassification, AutoFeatureExtractor)    
