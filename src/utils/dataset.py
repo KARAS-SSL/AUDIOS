@@ -4,6 +4,7 @@ from typing import Tuple
 import librosa
 import numpy as np
 import pandas as pd
+import torch
 import soundfile as sf
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
@@ -381,3 +382,36 @@ def display_info_dataset(dataset_path):
     # Read dataset
     dataset_df = pd.read_csv(dataset_path, keep_default_na=False)
     print(dataset_df)
+
+# ----------------------------------------------------------------
+# HEAD PREDICTION FUNCTIONS
+
+# Function to load embeddings and labels (MLP)
+def load_embeddings_and_labels(embeddings_folder_path, labels_path):
+    embeddings = []
+    labels = []
+    labels_df = pd.read_csv(labels_path)
+
+    for index, row in labels_df.iterrows():
+        audio_name = row['file']
+        audio_path = os.path.join(embeddings_folder_path, f"{audio_name}_embedding.pt")
+        embedding = torch.load(audio_path)
+        embeddings.append(embedding)
+        labels.append(row['label'])
+
+    return torch.stack(embeddings), torch.tensor(labels)
+
+# Function to load embeddings and labels with NumPy converter (SVM)
+def load_embeddings_and_labels_numpy(embeddings_folder_path, labels_path):
+    embeddings = []
+    labels = []
+    labels_df = pd.read_csv(labels_path)
+
+    for index, row in labels_df.iterrows():
+        audio_name = row['file']
+        audio_path = os.path.join(embeddings_folder_path, f"{audio_name}_embedding.pt")
+        embedding = torch.load(audio_path)
+        embeddings.append(embedding)
+        labels.append(row['label'])
+
+    return torch.stack(embeddings).numpy(), torch.tensor(labels).numpy()
