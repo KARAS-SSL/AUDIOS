@@ -3,6 +3,7 @@
 datasets/*
 embeddings/*
 runs/*
+models/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
