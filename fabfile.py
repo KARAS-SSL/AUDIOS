@@ -317,16 +317,22 @@ def TrainModel(c):
 @task
 def TestModel(c):
     
-    test_embeddings_folder_path   = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_test"
-    best_hyperparameters_path     = "runs/mlp_study1"
-    prediction_head               = "mlp"
-    gender                        = ""
+    test_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_test" 
+    best_hyperparameters_path     = "runs/run4"
+    prediction_head               = "svm"
+    gender                        = "M"
 
-    with open(os.path.join(best_hyperparameters_path, "best_hyperparameters.json"), "r") as f:
-        best_hyperparameters = json.load(f)
-        best_model_idx       = best_hyperparameters.get("best_trial_number")
+    # with open(os.path.join(best_hyperparameters_path, "best_hyperparameters.json"), "r") as f:
+    #     best_hyperparameters = json.load(f)
+    #     best_model_idx       = best_hyperparameters.get("best_trial_number")
+        
+    model_folder                  = "runs/run4"
+    # prediction_head               = "svm" 
+
+    # model_folder                  = "runs/run5"
+    # prediction_head               = "rf" 
     
-    model_folder = os.path.join(best_hyperparameters_path, f"run{best_model_idx}")
+    # model_folder = os.path.join(best_hyperparameters_path, f"run{best_model_idx}")
 
     if prediction_head == "mlp":
         test_mlp(test_embeddings_folder_path, model_folder, use_best_model=True, device=device)
