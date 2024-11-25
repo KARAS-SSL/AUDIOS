@@ -58,9 +58,9 @@ def train_mlp(
         val_embeddings_folder_path, batch_size=batch_size, shuffle=False
     )
 
-    # Dynamically determine input dimension from the dataset
-    sample_input, _ = next(iter(train_loader))
-    input_dim = sample_input.shape[1]
+    # Dynamically calculate input_dim based on the first batch
+    sample_batch, _ = next(iter(train_loader))
+    input_dim = sample_batch.shape[1]
 
     # Initialize model, loss function, optimizer, and learning rate scheduler
     model = MLP(input_dim, hidden_dim_1, output_dim, dropout_rate).to(device)
@@ -85,7 +85,7 @@ def train_mlp(
             outputs = model(inputs).squeeze()
             loss = loss_func(outputs, targets)
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             train_loss += loss.item()
 

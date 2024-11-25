@@ -9,6 +9,12 @@ from src.utils.embeddings import generate_embeddings_wav2vec, generate_embedding
 from src.train.mlp.train_mlp import train_mlp 
 from src.train.mlp.test_mlp import test_mlp 
 
+from src.train.svm.train_svm import train_svm
+from src.train.svm.test_svm import test_svm
+
+from src.train.random_florest.train_rf import train_rf
+from src.train.random_florest.test_rf import test_rf
+
 from src.visualize.umap import visualize_embeddings_umap
 from src.visualize.tsne import visualize_embeddings_tsne
 
@@ -137,7 +143,7 @@ def GenerateEmbeddingsWav2vec2BERT(c):
     sample_rate         = 16000
 
     # Which model to use:
-    model_id = "hf-audio/wav2vec2-bert-CV16-en"
+    model_id = "facebook/wav2vec2-base"
 
     # Embeddings output folder
     if isinstance(dataset_meta_path, str):
@@ -187,13 +193,13 @@ def GenerateEmbeddingsHubert(c):
 
 @task
 def VisualizeEmbeddingsUMAP(c):
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base-960h/files-downstream_train"
+    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
     visualize_embeddings_umap(train_embeddings_folder_path) 
     pass
 
 @task
 def VisualizeEmbeddingsTSNE(c):
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base-960h/files-downstream_train" 
+    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train" 
     visualize_embeddings_tsne(train_embeddings_folder_path) 
     pass
     
@@ -203,40 +209,65 @@ def VisualizeEmbeddingsTSNE(c):
 @task
 def TrainModel(c):
     
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base-960h/files-downstream_train"
-    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base-960h/files-downstream_val"
+    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
+    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
 
-    prediction_head = "mlp"
+    prediction_head = "rf"
     output_path     = "runs"
 
     if prediction_head == "mlp":
         hyperparameters = {
-            "epochs": 50,
-            "batch_size": 32,
+            "epochs": 20,
+            "batch_size": 64,
             "learning_rate": 0.0001,
-            "patience": 10,
-            "dropout": 0.4,
-            "weight_decay": 0.01,
-            "hidden_dim_1": 256,
-            "output_dim": 1 
+            "patience": 5,
+            "dropout": 0.33,
+            "weight_decay": 1e-4,
+            "hidden_dim_1": 128,
+            "output_dim": 1,
+            "randomness_seed": randomness_seed
         }
         train_mlp(train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed, device)
     elif prediction_head == "svm":
-        print("Not implemented yet. :P")
+        hyperparameters = {
+            "batch_size": 64, 
+            "C": 1.0,
+            "kernel": "rbf",
+            "gamma": "scale",
+            "randomness_seed": randomness_seed
+        }
+        train_svm(train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed)
+    elif prediction_head == "rf":
+        hyperparameters = {
+            "batch_size": 64, 
+            "n_estimators": 100,
+            "max_depth": 5,
+            "min_samples_split": 2,
+            "min_samples_leaf": 1,
+            "randomness_seed": randomness_seed
+        }
+        train_rf(train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed)
    
 @task
 def TestModel(c):
     
-    test_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base-960h/files-downstream_test"
-    model_folder                  = "runs/run11"
-    prediction_head               = "mlp"
+    test_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
+    # model_folder                  = "runs/run3"
+    # prediction_head               = "mlp"
+
+    # model_folder                  = "runs/run4"
+    # prediction_head               = "svm" 
+
+    model_folder                  = "runs/run5"
+    prediction_head               = "rf" 
     
     if prediction_head == "mlp":
         test_mlp(test_embeddings_folder_path, model_folder, use_best_model=True, device=device)
     elif prediction_head == "svm":
-        print("Not implemented yet. :P")
+        test_svm(test_embeddings_folder_path, model_folder)
+    elif prediction_head == "rf":
+        test_rf(test_embeddings_folder_path, model_folder)
         
 #----------------------------------------------------------------------------
 # Test Model
-
-    
+  

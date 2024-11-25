@@ -420,14 +420,16 @@ class VoiceEmbeddingsDataset(Dataset):
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
         embedding_path, label = self.data[idx]
         embedding = torch.load(embedding_path, weights_only=False)
-        return embedding.squeeze(0), label  # Squeeze to remove batch dimension
+        embedding_mean = embedding.mean(dim=1).squeeze()
+
+        return embedding_mean, label  # Squeeze to remove batch dimension
 
 # DataLoader creation function
 def load_embeddings(
     embeddings_folder_path: str, 
     batch_size: int = 32, 
     shuffle: bool = True, 
-    num_workers: int = 4
+    num_workers: int = 16
 ) -> DataLoader:
     """
     Create a DataLoader for the voice embeddings dataset.

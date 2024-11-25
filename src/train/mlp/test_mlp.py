@@ -77,7 +77,7 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
     all_true_labels = np.array(all_true_labels)
     all_pred_labels = np.array(all_pred_labels)
     all_pred_probs = np.array(all_pred_probs)
-    
+
     # Calculate Accuracy
     accuracy = accuracy_score(all_true_labels, all_pred_labels)
 
@@ -93,12 +93,24 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
     plt.xlabel('Predicted')
     plt.ylabel('True')
     plt.title('Confusion Matrix')
+    plt.savefig(os.path.join(run_path, "confusion_matrix.png"))
     plt.show()
 
     # Compute ROC curve and EER
-    # fpr, tpr, thresholds = roc_curve(all_true_labels, all_pred_probs)
-    # eer_threshold = thresholds[np.nanargmin(np.abs(fpr - tpr))]  # Find the threshold where FPR equals TPR
-    # eer = fpr[np.nanargmin(np.abs(fpr - tpr))]  # Equal Error Rate is the value of FPR at that threshold
+    fpr, tpr, thresholds = roc_curve(all_true_labels, all_pred_labels, pos_label=1)
+    fnr = 1 - tpr 
+    eer_index = np.nanargmin(np.absolute(fnr - fpr))
+    eer = fpr[eer_index]
+
+    plt.figure()
+    plt.plot(fpr, tpr, label="ROC Curve")
+    plt.plot([0, 1], [0, 1], 'k--', label="Random Guess")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.title("ROC Curve")
+    plt.legend()
+    plt.savefig(os.path.join(run_path, "roc_curve.png"))
+    plt.show()
 
     # Prepare metrics for saving
     metrics = {
@@ -106,9 +118,7 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
         'precision': precision,
         'recall': recall,
         'f1_score': f1,
-        # 'confusion_matrix': conf_matrix.tolist(),  # Convert the confusion matrix to a list
-        # 'eer': eer,  # Adding EER to the metrics
-        # 'eer_threshold': eer_threshold  # Adding the threshold at which EER occurs
+        'eer': eer,  # Adding EER to the metrics
     }
 
     # Print the metrics
@@ -116,9 +126,7 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
     print("Precision:", precision)
     print("Recall:", recall)
     print("F1 Score:", f1)
-    # print("Confusion Matrix:")
-    # print(conf_matrix)
-    # print(f"Equal Error Rate (EER): {eer:.4f} at threshold {eer_threshold:.4f}")
+    print("EER value:", eer)
 
     # Save the metrics to a JSON file
     metrics['model'] = 'MLP'
