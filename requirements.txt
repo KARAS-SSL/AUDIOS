@@ -8,5 +8,7 @@ pandas
 seaborn
 soundfile
 torch
+torchinfo
 tqdm
 transformers
+umap
