@@ -10,6 +10,7 @@ from sklearn.model_selection import train_test_split
 
 from src.train.mlp.mlp_model import MLP
 from src.utils.dataset import load_embeddings
+from src.utils.train import compute_eer
 
 import json
 import numpy as np
@@ -30,7 +31,7 @@ def train_mlp(
     output_path: str,
     randomness_seed: int,
     device: str,
-):
+) -> float:
     # Set random seed for reproducibility
     set_random_seeds(randomness_seed)
 
@@ -70,6 +71,8 @@ def train_mlp(
 
     # Initialize variables for training loop
     train_losses, val_losses = [], []
+    val_eers = []
+    best_val_eer  = float("inf")
     best_val_loss = float("inf")
     patience_counter = 0
 
@@ -92,6 +95,8 @@ def train_mlp(
         # Validation phase
         model.eval()
         val_loss = 0.0
+        all_targets = []
+        all_scores = []
         with torch.no_grad():
             for inputs, targets in val_loader:
                 inputs, targets = inputs.to(device), targets.to(device).float()
@@ -99,11 +104,22 @@ def train_mlp(
                 loss = loss_func(outputs, targets)
                 val_loss += loss.item()
 
+                # Store true labels and predicted scores for EER computation
+                all_targets.extend(targets.cpu().numpy())
+                all_scores.extend(outputs.cpu().numpy())
+
         # Compute average losses
         epoch_train_loss = train_loss / len(train_loader)
         epoch_val_loss = val_loss / len(val_loader)
         train_losses.append(epoch_train_loss)
         val_losses.append(epoch_val_loss)
+
+        # Compute EER
+        eer, eer_threshold = compute_eer(np.array(all_targets), np.array(all_scores))
+        val_eers.append(eer)
+
+        if eer < best_val_eer:
+            best_val_eer = eer
 
         # Update learning rate scheduler
         scheduler.step(epoch_val_loss)
@@ -137,6 +153,7 @@ def train_mlp(
 
     # Save hyperparameters and best validation loss
     hyperparameters["best_val_loss"] = best_val_loss
+    hyperparameters["best_val_eer"] = best_val_eer
     hyperparameters["input_dim"] = input_dim
     hyperparameters["model"] = "MLP"
     hyperparameters["train_dataset"] = train_embeddings_folder_path
@@ -157,3 +174,5 @@ def train_mlp(
     plt.show()
 
     print(f"Training completed. Logs, models, and hyperparameters saved in {run_folder}.")
+
+    return best_val_eer

@@ -1,4 +1,5 @@
 
+import json
 import os
 from fabric import task
 
@@ -12,6 +13,7 @@ from src.train.mlp.test_mlp import test_mlp
 from src.visualize.umap import visualize_embeddings_umap
 from src.visualize.tsne import visualize_embeddings_tsne
 
+import optuna
 import torch
 import numpy as np
 
@@ -198,7 +200,71 @@ def VisualizeEmbeddingsTSNE(c):
     pass
     
 #----------------------------------------------------------------------------
-# Train Model 
+# Train Model
+
+def objective_mlp(trial, output_path):
+    # Define the hyperparameter search space
+    hyperparameters = {
+        "epochs": 50,
+        "patience": 10,
+        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
+        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3, log=True),
+        "dropout": trial.suggest_float("dropout", 0.2, 0.5),
+        "weight_decay": trial.suggest_float("weight_decay", 1e-6, 1e-2, log=True),
+        "hidden_dim_1": trial.suggest_categorical("hidden_dim_1", [128, 256, 512]),
+        "output_dim": 1
+    }
+
+    # Paths to embeddings
+    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train"
+    val_embeddings_folder_path   = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_val"
+    
+    # Call the training function
+    validation_eer = train_mlp(
+        train_embeddings_folder_path, 
+        val_embeddings_folder_path, 
+        hyperparameters, 
+        output_path, 
+        randomness_seed, 
+        device
+    )
+
+    # Return the validation EER as the objective metric
+    return validation_eer
+
+
+@task
+def OptimizeHyperparameters(c, prediction_head: str):
+
+    if prediction_head != "mlp" and prediction_head != "svm":
+        raise ValueError(f"Invalid prediction head: {prediction_head}")
+
+    # Create output folder for the study runs
+    output_path = "runs"
+    os.makedirs(output_path, exist_ok=True)
+    study_number = len([f for f in os.listdir(output_path) if f.startswith(f"{prediction_head}_study")])
+    study_folder = os.path.join(output_path, f"{prediction_head}_study{study_number}")
+    os.makedirs(study_folder, exist_ok=True)
+
+    # Optimize the hyperparameters
+    study = optuna.create_study(direction="minimize")
+    if prediction_head == "mlp":
+        study.optimize(lambda trial: objective_mlp(trial, study_folder), n_trials=5)
+    elif prediction_head == "svm":
+        print("Not implemented yet. :P")
+
+    # Save the best hyperparameters to a file
+    best_run_path = os.path.join(study_folder, "best_hyperparameters.json")
+    best_run      = {
+        "best_trial_number": study.best_trial.number,
+        "best_validation_eer": study.best_value,
+        "best_hyperparameters": study.best_params
+    }
+    with open(best_run_path, "w") as f:
+        json.dump(best_run, f, indent=4)
+    
+    print("Study completed. Best hyperparameters saved to ", best_run_path)
+
 
 @task
 def TrainModel(c):
@@ -223,14 +289,21 @@ def TrainModel(c):
         train_mlp(train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed, device)
     elif prediction_head == "svm":
         print("Not implemented yet. :P")
-   
+
+
 @task
 def TestModel(c):
     
-    test_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base-960h/files-downstream_test"
-    model_folder                  = "runs/run11"
+    test_embeddings_folder_path   = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_test"
+    best_hyperparameters_path     = "runs/mlp_study1"
     prediction_head               = "mlp"
+
+    with open(os.path.join(best_hyperparameters_path, "best_hyperparameters.json"), "r") as f:
+        best_hyperparameters = json.load(f)
+        best_model_idx       = best_hyperparameters.get("best_trial_number")
     
+    model_folder = os.path.join(best_hyperparameters_path, f"run{best_model_idx}")
+
     if prediction_head == "mlp":
         test_mlp(test_embeddings_folder_path, model_folder, use_best_model=True, device=device)
     elif prediction_head == "svm":
