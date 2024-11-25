@@ -13,9 +13,9 @@ import matplotlib.pyplot as plt
 
 from src.utils.dataset import load_embeddings
 
-def test_svm(test_embeddings_folder_path: str, model_folder: str):
+def test_svm(test_embeddings_folder_path: str, model_folder: str, gender: str = ""):
     # Load test embeddings
-    test_loader = load_embeddings(test_embeddings_folder_path)
+    test_loader = load_embeddings(test_embeddings_folder_path, gender)
     test_inputs, test_targets = zip(*test_loader)
     test_inputs = np.vstack(test_inputs)
     test_targets = np.hstack(test_targets)

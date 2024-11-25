@@ -320,6 +320,7 @@ def TestModel(c):
     test_embeddings_folder_path   = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_test"
     best_hyperparameters_path     = "runs/mlp_study1"
     prediction_head               = "mlp"
+    gender                        = ""
 
     with open(os.path.join(best_hyperparameters_path, "best_hyperparameters.json"), "r") as f:
         best_hyperparameters = json.load(f)
@@ -330,7 +331,7 @@ def TestModel(c):
     if prediction_head == "mlp":
         test_mlp(test_embeddings_folder_path, model_folder, use_best_model=True, device=device)
     elif prediction_head == "svm":
-        test_svm(test_embeddings_folder_path, model_folder)
+        test_svm(test_embeddings_folder_path, model_folder, gender)
     elif prediction_head == "rf":
         test_rf(test_embeddings_folder_path, model_folder)
         

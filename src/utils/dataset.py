@@ -391,22 +391,22 @@ def display_info_dataset(dataset_path):
 
 # Custom dataset for loading voice embeddings and their labels.
 class VoiceEmbeddingsDataset(Dataset):
-    def __init__(self, embeddings_folder_path: str):
+    def __init__(self, embeddings_folder_path: str, gender: str):
         self.data = []
 
         # Load fake voices (label 0)
         fake_path = os.path.join(embeddings_folder_path, "fake_voices")
-        self._load_data(fake_path, label=0) 
+        self._load_data(fake_path, label=0, gender=gender) 
 
         # Load real voices (label 1)
         real_path = os.path.join(embeddings_folder_path, "real_voices")
-        self._load_data(real_path, label=1)
+        self._load_data(real_path, label=1, gender=gender)
 
-    def _load_data(self, folder_path: str, label: int):
+    def _load_data(self, folder_path: str, label: int, gender: str):
         for person_folder in os.listdir(folder_path):
             person_path = os.path.join(folder_path, person_folder)
 
-            if not os.path.isdir(person_path):
+            if not os.path.isdir(person_path) or (gender != "" and person_folder.split("_")[1][0] != gender):
                 continue  # Skip non-directory files
 
             for file in os.listdir(person_path):
@@ -427,6 +427,7 @@ class VoiceEmbeddingsDataset(Dataset):
 # DataLoader creation function
 def load_embeddings(
     embeddings_folder_path: str, 
+    gender: str = "",
     batch_size: int = 32, 
     shuffle: bool = True, 
     num_workers: int = 16
@@ -443,7 +444,7 @@ def load_embeddings(
     Returns:
         DataLoader: PyTorch DataLoader for training.
     """
-    dataset = VoiceEmbeddingsDataset(embeddings_folder_path)
+    dataset = VoiceEmbeddingsDataset(embeddings_folder_path, gender)
     dataloader = DataLoader(
         dataset, 
         batch_size=batch_size, 
