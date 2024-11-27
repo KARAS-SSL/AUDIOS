@@ -338,12 +338,12 @@ def TrainModel(c):
     train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
     val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
 
-    prediction_head = "rf"
+    prediction_head = "mlp"
     output_path     = "runs"
 
     if prediction_head == "mlp":
         hyperparameters = {
-            "epochs": 20,
+            "epochs": 5,
             "batch_size": 64,
             "learning_rate": 0.0001,
             "patience": 5,
