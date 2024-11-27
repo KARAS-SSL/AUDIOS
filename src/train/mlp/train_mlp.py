@@ -1,19 +1,19 @@
+import json
 import os
 import time
-import torch
-import torch.optim as optim
-import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
-from torch.nn.utils.rnn import pad_sequence
 
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
 from sklearn.model_selection import train_test_split
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader, TensorDataset
 
 from src.train.mlp.mlp_model import MLP
 from src.utils.dataset import load_embeddings
-
-import json
-import numpy as np
-import matplotlib.pyplot as plt
+from src.utils.train import compute_eer
 
 #----------------------------------------------------------------
 # TRAINING FUNCTION
@@ -30,7 +30,7 @@ def train_mlp(
     output_path: str,
     randomness_seed: int,
     device: str,
-):
+) -> float:
     # Set random seed for reproducibility
     set_random_seeds(randomness_seed)
 
@@ -58,9 +58,9 @@ def train_mlp(
         val_embeddings_folder_path, batch_size=batch_size, shuffle=False
     )
 
-    # Dynamically determine input dimension from the dataset
-    sample_input, _ = next(iter(train_loader))
-    input_dim = sample_input.shape[1]
+    # Dynamically calculate input_dim based on the first batch
+    sample_batch, _ = next(iter(train_loader))
+    input_dim = sample_batch.shape[1]
 
     # Initialize model, loss function, optimizer, and learning rate scheduler
     model = MLP(input_dim, hidden_dim_1, output_dim, dropout_rate).to(device)
@@ -69,7 +69,9 @@ def train_mlp(
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=3)
 
     # Initialize variables for training loop
-    train_losses, val_losses = [], []
+    train_losses, val_losses, val_accuracies = [], [], []
+    val_eers = []
+    best_val_eer = float("inf")
     best_val_loss = float("inf")
     patience_counter = 0
 
@@ -85,13 +87,16 @@ def train_mlp(
             outputs = model(inputs).squeeze()
             loss = loss_func(outputs, targets)
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             train_loss += loss.item()
 
         # Validation phase
         model.eval()
         val_loss = 0.0
+        all_targets = []
+        all_scores = []
+        correct_predictions = 0
+        total_samples = 0
         with torch.no_grad():
             for inputs, targets in val_loader:
                 inputs, targets = inputs.to(device), targets.to(device).float()
@@ -99,11 +104,29 @@ def train_mlp(
                 loss = loss_func(outputs, targets)
                 val_loss += loss.item()
 
-        # Compute average losses
+                # Calculate accuracy
+                predictions = (torch.sigmoid(outputs) >= 0.5).int()
+                correct_predictions += (predictions == targets.int()).sum().item()
+                total_samples += targets.size(0)
+
+                # Store true labels and predicted scores for EER computation
+                all_targets.extend(targets.cpu().numpy())
+                all_scores.extend(outputs.cpu().numpy())
+
+        # Compute average losses and accuracy
         epoch_train_loss = train_loss / len(train_loader)
         epoch_val_loss = val_loss / len(val_loader)
+        epoch_val_accuracy = correct_predictions / total_samples
         train_losses.append(epoch_train_loss)
         val_losses.append(epoch_val_loss)
+        val_accuracies.append(epoch_val_accuracy)
+
+        # Compute EER
+        eer, eer_threshold = compute_eer(np.array(all_targets), np.array(all_scores))
+        val_eers.append(eer)
+
+        if eer < best_val_eer:
+            best_val_eer = eer
 
         # Update learning rate scheduler
         scheduler.step(epoch_val_loss)
@@ -111,7 +134,7 @@ def train_mlp(
         # Log progress
         epoch_log = f"Epoch {epoch + 1}/{epochs}"
         train_log = f"Train Loss: {epoch_train_loss:.4f}"
-        val_log = f"Validation Loss: {epoch_val_loss:.4f}"
+        val_log = f"Validation Loss: {epoch_val_loss:.4f}, Accuracy: {epoch_val_accuracy:.4f}"
         lr_log = f"Learning Rate: {optimizer.param_groups[0]['lr']:.6e}"
         print(f"{epoch_log} | {train_log} | {val_log} | {lr_log}")
 
@@ -134,9 +157,11 @@ def train_mlp(
     torch.save(model.state_dict(), os.path.join(run_folder, "final_model.pth"))
     np.save(os.path.join(run_folder, "train_losses.npy"), np.array(train_losses))
     np.save(os.path.join(run_folder, "val_losses.npy"), np.array(val_losses))
+    np.save(os.path.join(run_folder, "val_accuracies.npy"), np.array(val_accuracies))
 
     # Save hyperparameters and best validation loss
     hyperparameters["best_val_loss"] = best_val_loss
+    hyperparameters["best_val_eer"] = best_val_eer
     hyperparameters["input_dim"] = input_dim
     hyperparameters["model"] = "MLP"
     hyperparameters["train_dataset"] = train_embeddings_folder_path
@@ -156,4 +181,17 @@ def train_mlp(
     plt.savefig(os.path.join(run_folder, "loss_plot.png"))
     plt.show()
 
+    # Plot accuracy curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, len(val_accuracies) + 1), val_accuracies, label="Validation Accuracy", marker="o", color="green")
+    plt.title("Validation Accuracy")
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy")
+    plt.legend()
+    plt.grid(True)
+    plt.savefig(os.path.join(run_folder, "accuracy_plot.png"))
+    plt.show()
+    
     print(f"Training completed. Logs, models, and hyperparameters saved in {run_folder}.")
+
+    return best_val_eer

@@ -11,6 +11,8 @@ from tqdm import tqdm
 
 from .dataset import load_audio_file
 
+from matplotlib import pyplot as plt
+
 #----------------------------------------------------------------
 # EMBEDDING HELPER FUNCTIONS
 
@@ -27,10 +29,17 @@ def load_audio(filename: str, dataset_folder_path: str, target_sample_rate: int)
 
 # Convert audio to embeddings using the specified processor and model, and save the output.
 def process_and_save_embeddings(processor, model, waveform, sample_rate, output_path):
-    input_values = processor(waveform.squeeze(), sampling_rate=sample_rate, return_tensors="pt").input_values
+    # input_values = processor(waveform.squeeze(), sampling_rate=sample_rate, return_tensors="pt").input_values
+
+    # plt.plot(waveform)
+    # plt.show()
+
+    input_values = processor(waveform, sampling_rate=sample_rate, return_tensors="pt")
 
     with torch.no_grad():
-        embeddings = model(input_values).logits  # Access logits for embeddings
+        # embeddings = model(input_values).logits  # Access logits for embeddings
+        outputs = model(**input_values)
+    embeddings = outputs.last_hidden_state
 
     output_folder_path = os.path.dirname(output_path)
     os.makedirs(output_folder_path, exist_ok=True)
@@ -58,7 +67,7 @@ def generate_embeddings(
     # Load model and processor
     processor = processor_class.from_pretrained(model_id)
     model = model_class.from_pretrained(model_id)
-    model.eval()
+    # model.eval()
 
     print(f"Generating embeddings for {dataset_meta_path} using {model_class.__name__} and {processor_class.__name__}...")
 
@@ -111,27 +120,20 @@ def generate_embeddings_wav2vec(dataset_path:str, metadata_paths:List[str], fr:i
     
 @dispatch(str, str, int, str, str)
 def generate_embeddings_wav2vec2_bert(dataset_path:str, metadata_path:str, fr:int, model_id:str, out_folder:str) -> None:
-    # from transformers import Wav2Vec2BertForSequenceClassification, AutoFeatureExtractor
-    # generate_embeddings(dataset_path, metadata_path, fr, model_id,out_folder, 
-                        # Wav2Vec2BertForSequenceClassification, AutoFeatureExtractor)
-    from transformers import AutoProcessor, Wav2Vec2BertModel
-    generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, Wav2Vec2BertModel, AutoProcessor)
-
+    from transformers import AutoProcessor, Wav2Vec2Model
+    generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, Wav2Vec2Model, AutoProcessor) 
 
 @dispatch(str, list, int, str, list)
 def generate_embeddings_wav2vec2_bert(dataset_path:str, metadata_paths:List[str], fr:int, model_id:str, out_folders:List[str]):
-    # from transformers import Wav2Vec2BertForSequenceClassification, AutoFeatureExtractor
-    # generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, 
-                                 # Wav2Vec2BertForSequenceClassification, AutoFeatureExtractor)
-    from transformers import AutoProcessor, Wav2Vec2BertModel
-    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, Wav2Vec2BertModel, AutoProcessor)
+    from transformers import AutoProcessor, Wav2Vec2Model
+    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, Wav2Vec2Model, AutoProcessor) 
 
 @dispatch(str, str, int, str, str)
 def generate_embeddings_hubert(dataset_path: str, metadata_path: str, fr: int, model_id: str, out_folder: str) -> None:
-    from transformers import HubertForSequenceClassification, AutoFeatureExtractor
-    generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, HubertForSequenceClassification, AutoFeatureExtractor)
+    from transformers import HubertModel, AutoProcessor
+    generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, HubertModel, AutoProcessor)
 
 @dispatch(str, list, int, str, list)
 def generate_embeddings_hubert(dataset_path: str, metadata_paths: List[str], fr: int, model_id: str, out_folders: List[str]):
-    from transformers import HubertForSequenceClassification, AutoFeatureExtractor
-    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, HubertForSequenceClassification, AutoFeatureExtractor)    
+    from transformers import HubertModel, AutoProcessor
+    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, HubertModel, AutoProcessor)

@@ -1,2 +1,0 @@
-fab TrainModel
-fab VisualizeEmbeddingsTSNE

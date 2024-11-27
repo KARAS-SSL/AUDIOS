@@ -26,12 +26,32 @@ def visualize_embeddings_umap(embeddings_folder_path: str, batch_size: int = 32,
     umap_embeddings = umap_model.fit_transform(embeddings)
 
     # Plot UMAP results
+    # plt.figure(figsize=(10, 8))
+    # scatter = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=labels, cmap='viridis', alpha=0.7)
+    # plt.title("UMAP Visualization of Embeddings")
+    # plt.xlabel("UMAP Dimension 1")
+    # plt.ylabel("UMAP Dimension 2")
+    # plt.colorbar(scatter, label="Labels")
+    # plt.show()
+   
+    # Plot t-SNE results
     plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(umap_embeddings[:, 0], umap_embeddings[:, 1], c=labels, cmap='viridis', alpha=0.7)
+    for label, color, marker in zip([0, 1], ['#6699CC', '#893168'], ['o', 's']):
+        idx = labels == label
+        plt.scatter(
+            umap_embeddings[idx, 0],
+            umap_embeddings[idx, 1],
+            color=color,
+            label=f"Class {label} ({'Fake' if label == 0 else 'Real'})",
+            alpha=0.7,
+            marker=marker
+        )
+    
     plt.title("UMAP Visualization of Embeddings")
     plt.xlabel("UMAP Dimension 1")
     plt.ylabel("UMAP Dimension 2")
-    plt.colorbar(scatter, label="Labels")
+    plt.legend(title="Classes", loc='best')
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
     plt.show()
-    
  
