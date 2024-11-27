@@ -1,20 +1,19 @@
+import json
 import os
 import time
-import torch
-import torch.optim as optim
-import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
-from torch.nn.utils.rnn import pad_sequence
 
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
 from sklearn.model_selection import train_test_split
+from torch.nn.utils.rnn import pad_sequence
+from torch.utils.data import DataLoader, TensorDataset
 
 from src.train.mlp.mlp_model import MLP
 from src.utils.dataset import load_embeddings
 from src.utils.train import compute_eer
-
-import json
-import numpy as np
-import matplotlib.pyplot as plt
 
 #----------------------------------------------------------------
 # TRAINING FUNCTION

@@ -130,10 +130,10 @@ def generate_embeddings_wav2vec2_bert(dataset_path:str, metadata_paths:List[str]
 
 @dispatch(str, str, int, str, str)
 def generate_embeddings_hubert(dataset_path: str, metadata_path: str, fr: int, model_id: str, out_folder: str) -> None:
-    from transformers import HubertForSequenceClassification, AutoFeatureExtractor
-    generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, HubertForSequenceClassification, AutoFeatureExtractor)
+    from transformers import HubertModel, AutoProcessor
+    generate_embeddings(dataset_path, metadata_path, fr, model_id, out_folder, HubertModel, AutoProcessor)
 
 @dispatch(str, list, int, str, list)
 def generate_embeddings_hubert(dataset_path: str, metadata_paths: List[str], fr: int, model_id: str, out_folders: List[str]):
-    from transformers import HubertForSequenceClassification, AutoFeatureExtractor
-    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, HubertForSequenceClassification, AutoFeatureExtractor)    
+    from transformers import HubertModel, AutoProcessor
+    generate_embeddings_multiple(dataset_path, metadata_paths, fr, model_id, out_folders, HubertModel, AutoProcessor)

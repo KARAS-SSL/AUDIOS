@@ -218,7 +218,8 @@ def objective_mlp(trial, output_path):
         "dropout": trial.suggest_float("dropout", 0.2, 0.5),
         "weight_decay": trial.suggest_float("weight_decay", 1e-6, 1e-2, log=True),
         "hidden_dim_1": trial.suggest_categorical("hidden_dim_1", [128, 256, 512]),
-        "output_dim": 1
+        "output_dim": 1,
+        "randomness_seed": randomness_seed
     }
 
     # Paths to embeddings
@@ -239,10 +240,67 @@ def objective_mlp(trial, output_path):
     return validation_eer
 
 
+def objective_svm(trial, output_path):
+    # Define the hyperparameter search space
+    hyperparameters = {
+        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
+        "C": trial.suggest_float("C", 0.1, 10.0),
+        "kernel": trial.suggest_categorical("kernel", ["linear", "rbf", "sigmoid"]),
+        "gamma": trial.suggest_categorical("gamma", ["scale", "auto"]),
+        "randomness_seed": randomness_seed
+
+    }
+
+    # Paths to embeddings
+    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train"
+    val_embeddings_folder_path   = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_val"
+    
+    # Call the training function
+    validation_eer = train_svm(
+        train_embeddings_folder_path, 
+        val_embeddings_folder_path, 
+        hyperparameters, 
+        output_path, 
+        randomness_seed
+    )
+
+    # Return the validation EER as the objective metric
+    return validation_eer
+
+
+def objective_rf(trial, output_path):
+    # Define the hyperparameter search space
+    hyperparameters = {
+        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
+        "n_estimators": trial.suggest_int("n_estimators", 10, 1000),
+        "max_depth": trial.suggest_int("max_depth", 1, 20),
+        "min_samples_split": trial.suggest_int("min_samples_split", 2, 10),
+        "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
+        "randomness_seed": randomness_seed
+
+    }
+
+    # Paths to embeddings
+    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train"
+    val_embeddings_folder_path   = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_val"
+    
+    # Call the training function
+    validation_eer = train_rf(
+        train_embeddings_folder_path, 
+        val_embeddings_folder_path, 
+        hyperparameters, 
+        output_path, 
+        randomness_seed
+    )
+
+    # Return the validation EER as the objective metric
+    return validation_eer
+
+
 @task
 def OptimizeHyperparameters(c, prediction_head: str):
 
-    if prediction_head != "mlp" and prediction_head != "svm":
+    if prediction_head != "mlp" and prediction_head != "svm" and prediction_head != "rf":
         raise ValueError(f"Invalid prediction head: {prediction_head}")
 
     # Create output folder for the study runs
@@ -255,9 +313,11 @@ def OptimizeHyperparameters(c, prediction_head: str):
     # Optimize the hyperparameters
     study = optuna.create_study(direction="minimize")
     if prediction_head == "mlp":
-        study.optimize(lambda trial: objective_mlp(trial, study_folder), n_trials=5)
+        study.optimize(lambda trial: objective_mlp(trial, study_folder), n_trials=50)
     elif prediction_head == "svm":
-        print("Not implemented yet. :P")
+        study.optimize(lambda trial: objective_svm(trial, study_folder), n_trials=50)
+    elif prediction_head == "rf":
+        study.optimize(lambda trial: objective_rf(trial, study_folder), n_trials=50)
 
     # Save the best hyperparameters to a file
     best_run_path = os.path.join(study_folder, "best_hyperparameters.json")

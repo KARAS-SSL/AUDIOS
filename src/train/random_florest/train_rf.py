@@ -1,14 +1,17 @@
-import os
 import json
+import os
+
+import joblib
 import numpy as np
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import StandardScaler
-import joblib
 
 from src.utils.dataset import load_embeddings
+from src.utils.train import compute_eer
 
-def train_rf(train_embeddings_folder_path: str, val_embeddings_folder_path: str, hyperparameters: dict, output_path: str, randomness_seed: int):
+
+def train_rf(train_embeddings_folder_path: str, val_embeddings_folder_path: str, hyperparameters: dict, output_path: str, randomness_seed: int) -> float:
     # Set random seed for reproducibility
     np.random.seed(randomness_seed)
     
@@ -58,12 +61,15 @@ def train_rf(train_embeddings_folder_path: str, val_embeddings_folder_path: str,
     val_predictions = rf.predict(val_inputs)
     val_accuracy = accuracy_score(val_targets, val_predictions)
     val_report = classification_report(val_targets, val_predictions, output_dict=True)
+    val_scores = rf.decision_function(val_inputs)
+    val_eer = compute_eer(val_targets, val_scores)
     
     # Save model and scaler
     joblib.dump(rf, os.path.join(run_folder, "random_forest_model.joblib"))
     joblib.dump(scaler, os.path.join(run_folder, "scaler.joblib"))
     
     # Save hyperparameters and metrics
+    hyperparameters["validation_eer"] = val_eer
     hyperparameters["validation_accuracy"] = val_accuracy
     hyperparameters["validation_report"] = val_report
     hyperparameters["model"] = "Random Florest"
@@ -76,3 +82,4 @@ def train_rf(train_embeddings_folder_path: str, val_embeddings_folder_path: str,
     print(f"Classification Report:\n {classification_report(val_targets, val_predictions)}")
     print(f"Model and logs saved in {run_folder}.")
 
+    return val_eer
