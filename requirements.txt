@@ -4,9 +4,11 @@ librosa
 matplotlib
 multipledispatch
 numpy
+optuna
 pandas
 seaborn
 soundfile
 torch
 tqdm
 transformers
+umap-learn

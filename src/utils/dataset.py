@@ -430,7 +430,7 @@ def load_embeddings(
     gender: str = "",
     batch_size: int = 32, 
     shuffle: bool = True, 
-    num_workers: int = 16
+    num_workers: int = 8
 ) -> DataLoader:
     """
     Create a DataLoader for the voice embeddings dataset.
