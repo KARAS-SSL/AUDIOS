@@ -14,7 +14,7 @@ from src.utils.train import compute_eer
 #----------------------------------------------------------------
 # TRAINING FUNCTION
 
-def train_svm(train_embeddings_folder_path: str, val_embeddings_folder_path: str, hyperparameters: dict, output_path: str, randomness_seed: int) -> float:
+def train_svm(train_loader: list, val_loader: list, train_embeddings_folder_path: str, val_embeddings_folder_path: str, hyperparameters: dict, output_path: str, randomness_seed: int) -> float:
     # Set random seed for reproducibility
     np.random.seed(randomness_seed)
     
@@ -31,11 +31,7 @@ def train_svm(train_embeddings_folder_path: str, val_embeddings_folder_path: str
     kernel = hyperparameters['kernel']
     gamma = hyperparameters['gamma']
 
-    # Load embeddings
-    train_loader = load_embeddings(train_embeddings_folder_path, batch_size=batch_size, shuffle=False)
-    val_loader = load_embeddings(val_embeddings_folder_path, batch_size=batch_size, shuffle=False)
-
-     # Initialize lists for inputs and targets
+    # Initialize lists for inputs and targets
     train_inputs = []
     train_targets = []
     val_inputs = []

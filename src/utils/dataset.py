@@ -431,7 +431,7 @@ def load_embeddings(
     batch_size: int = 32, 
     shuffle: bool = True, 
     num_workers: int = 8
-) -> DataLoader:
+) -> List[List[torch.Tensor]]:
     """
     Create a DataLoader for the voice embeddings dataset.
     
@@ -442,7 +442,7 @@ def load_embeddings(
         num_workers (int): Number of subprocesses to use for data loading.
 
     Returns:
-        DataLoader: PyTorch DataLoader for training.
+        list: List of lists containing embeddings and labels.
     """
     dataset = VoiceEmbeddingsDataset(embeddings_folder_path, gender)
     dataloader = DataLoader(
@@ -451,4 +451,4 @@ def load_embeddings(
         shuffle=shuffle, 
         num_workers=num_workers, 
     )
-    return dataloader
+    return list(tqdm(dataloader, desc="Loading embeddings"))
