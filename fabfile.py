@@ -202,20 +202,27 @@ def GenerateEmbeddingsHubert(c):
 
 @task
 def VisualizeEmbeddingsUMAP(c):
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_val"
-    visualize_embeddings_umap(train_embeddings_folder_path, batch_size=32, random_state=randomness_seed) 
-    pass
+    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train/"
+    loader = load_embeddings(train_embeddings_folder_path)
+    visualize_embeddings_umap(loader) 
 
 @task
 def VisualizeEmbeddingsTSNE(c):
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_val" 
-    visualize_embeddings_tsne(train_embeddings_folder_path, batch_size=32, random_state=randomness_seed) 
-    pass
+    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train/" 
+    loader = load_embeddings(train_embeddings_folder_path)
+    visualize_embeddings_tsne(loader) 
+
+@task 
+def VisualizeEmbeddings(c):
+    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train/"
+    loader = load_embeddings(train_embeddings_folder_path)
+    visualize_embeddings_umap(loader)
+    visualize_embeddings_tsne(loader)
     
 #----------------------------------------------------------------------------
 # Train Model
 
-def objective_mlp(trial, output_path):
+def objective_mlp(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, output_path):
     # Define the hyperparameter search space
     hyperparameters = {
         "epochs": 50,
@@ -232,10 +239,11 @@ def objective_mlp(trial, output_path):
     # Paths to embeddings   
     train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
     val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
-
     
     # Call the training function
     validation_eer = train_mlp(
+        train_embeddings_loader, 
+        val_embeddings_loader,
         train_embeddings_folder_path, 
         val_embeddings_folder_path, 
         hyperparameters, 
@@ -248,7 +256,7 @@ def objective_mlp(trial, output_path):
     return validation_eer
 
 
-def objective_svm(trial, output_path):
+def objective_svm(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, output_path):
     # Define the hyperparameter search space
     hyperparameters = {
         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
@@ -264,9 +272,10 @@ def objective_svm(trial, output_path):
     val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
 
  
-    
     # Call the training function
     validation_eer = train_svm(
+        train_embeddings_loader, 
+        val_embeddings_loader,
         train_embeddings_folder_path, 
         val_embeddings_folder_path, 
         hyperparameters, 
@@ -278,7 +287,7 @@ def objective_svm(trial, output_path):
     return validation_eer
 
 
-def objective_rf(trial, output_path):
+def objective_rf(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, output_path):
     # Define the hyperparameter search space
     hyperparameters = {
         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
@@ -293,10 +302,11 @@ def objective_rf(trial, output_path):
     # Paths to embeddings
     train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
     val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
-
-    
+ 
     # Call the training function
     validation_eer = train_rf(
+        train_embeddings_loader, 
+        val_embeddings_loader,
         train_embeddings_folder_path, 
         val_embeddings_folder_path, 
         hyperparameters, 
@@ -321,14 +331,29 @@ def OptimizeHyperparameters(c, prediction_head: str):
     study_folder = os.path.join(output_path, f"{prediction_head}_study{study_number}")
     os.makedirs(study_folder, exist_ok=True)
 
+    # Load embeddings
+    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train"
+    val_embeddings_folder_path   = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_val"
+    train_embeddings_loader = load_embeddings(train_embeddings_folder_path)
+    val_embeddings_loader   = load_embeddings(val_embeddings_folder_path)
+
     # Optimize the hyperparameters
     study = optuna.create_study(direction="minimize")
     if prediction_head == "mlp":
-        study.optimize(lambda trial: objective_mlp(trial, study_folder), n_trials=10)
+        study.optimize(
+            lambda trial: objective_mlp(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, study_folder),
+            n_trials=30
+        )
     elif prediction_head == "svm":
-        study.optimize(lambda trial: objective_svm(trial, study_folder), n_trials=10)
+        study.optimize(
+            lambda trial: objective_svm(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, study_folder),
+            n_trials=30
+        )
     elif prediction_head == "rf":
-        study.optimize(lambda trial: objective_rf(trial, study_folder), n_trials=10)
+        study.optimize(
+            lambda trial: objective_rf(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, study_folder),
+            n_trials=30
+        )
 
     # Save the best hyperparameters to a file
     best_run_path = os.path.join(study_folder, "best_hyperparameters.json")
@@ -339,7 +364,7 @@ def OptimizeHyperparameters(c, prediction_head: str):
     }
     with open(best_run_path, "w") as f:
         json.dump(best_run, f, indent=4)
-    
+
     print("Study completed. Best hyperparameters saved to ", best_run_path)
 
 
@@ -347,6 +372,8 @@ def OptimizeHyperparameters(c, prediction_head: str):
 def TrainModel(c): 
     train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
     val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
+    train_embeddings_loader = load_embeddings(train_embeddings_folder_path)
+    val_embeddings_loader   = load_embeddings(val_embeddings_folder_path)
 
     prediction_head = "rf"
     output_path     = "runs"
@@ -363,7 +390,7 @@ def TrainModel(c):
             "output_dim": 1,
             "randomness_seed": randomness_seed
         }
-        train_mlp(train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed, device)
+        train_mlp(train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed, device)
     elif prediction_head == "svm":
         hyperparameters = {
             "batch_size": 64, 
@@ -372,7 +399,7 @@ def TrainModel(c):
             "gamma": "scale",
             "randomness_seed": randomness_seed
         }
-        train_svm(train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed)
+        train_svm(train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed)
     elif prediction_head == "rf":
         hyperparameters = {
             "batch_size": 64, 
@@ -382,7 +409,7 @@ def TrainModel(c):
             "min_samples_leaf": 1,
             "randomness_seed": randomness_seed
         }
-        train_rf(train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed)
+        train_rf(train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed)
    
 @task
 def TestModel(c):

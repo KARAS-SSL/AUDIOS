@@ -1,19 +1,15 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from src.utils.dataset import load_embeddings
 
 from sklearn.manifold import TSNE
 
-def visualize_embeddings_tsne(embeddings_folder_path: str, batch_size: int = 32, random_state: int = 42) -> None:
-
-    # Load embeddings
-    loader = load_embeddings(embeddings_folder_path, batch_size=batch_size, shuffle=True)
+def visualize_embeddings_tsne(embeddings_loader: list, random_state: int = 42) -> None:
 
     # Extract embeddings and labels from the data loader
     embeddings = []
     labels = []
-    for batch in loader:
+    for batch in embeddings_loader:
         inputs, targets = batch
         embeddings.append(inputs.numpy())  # Convert tensor to numpy array
         labels.append(targets.numpy())    # Convert tensor to numpy array
@@ -26,8 +22,10 @@ def visualize_embeddings_tsne(embeddings_folder_path: str, batch_size: int = 32,
     perplexity = 30 if n_samples > 30 else n_samples - 1
 
     # Apply t-SNE
+    print("Applying t-SNE...")
     tsne = TSNE(n_components=2, perplexity=perplexity, random_state=random_state)
     tsne_embeddings = tsne.fit_transform(embeddings)
+    print("t-SNE applied.")
     
     # Plot t-SNE results
     # plt.figure(figsize=(10, 8))

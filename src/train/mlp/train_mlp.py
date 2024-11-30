@@ -24,6 +24,8 @@ def set_random_seeds(seed: int):
     np.random.seed(seed)
 
 def train_mlp(
+    train_loader: list,
+    val_loader: list,
     train_embeddings_folder_path: str,
     val_embeddings_folder_path: str,
     hyperparameters: dict,
@@ -50,14 +52,6 @@ def train_mlp(
     output_dim = hyperparameters["output_dim"]
     dropout_rate = hyperparameters["dropout"]
     weight_decay = hyperparameters["weight_decay"]
-
-    # Load training and validation datasets
-    train_loader = load_embeddings(
-        train_embeddings_folder_path, batch_size=batch_size, shuffle=True
-    )
-    val_loader = load_embeddings(
-        val_embeddings_folder_path, batch_size=batch_size, shuffle=False
-    )
 
     # Dynamically calculate input_dim based on the first batch
     sample_batch, _ = next(iter(train_loader))

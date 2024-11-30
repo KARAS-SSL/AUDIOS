@@ -11,7 +11,7 @@ from src.utils.dataset import load_embeddings
 from src.utils.train import compute_eer
 
 
-def train_rf(train_embeddings_folder_path: str, val_embeddings_folder_path: str, hyperparameters: dict, output_path: str, randomness_seed: int) -> float:
+def train_rf(train_loader: list, val_loader: list, train_embeddings_folder_path: str, val_embeddings_folder_path: str, hyperparameters: dict, output_path: str, randomness_seed: int) -> float:
     # Set random seed for reproducibility
     np.random.seed(randomness_seed)
     
@@ -29,10 +29,6 @@ def train_rf(train_embeddings_folder_path: str, val_embeddings_folder_path: str,
     min_samples_split = hyperparameters['min_samples_split']
     min_samples_leaf = hyperparameters['min_samples_leaf']
     
-    # Load embeddings
-    train_loader = load_embeddings(train_embeddings_folder_path, batch_size=batch_size, shuffle=False)  # Load all data at once
-    val_loader = load_embeddings(val_embeddings_folder_path, batch_size=batch_size, shuffle=False)
-
     # Extract inputs and targets
     train_inputs, train_targets = zip(*train_loader)
     train_inputs = np.vstack(train_inputs)

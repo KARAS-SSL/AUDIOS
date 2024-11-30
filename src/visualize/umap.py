@@ -1,19 +1,15 @@
 
 import numpy as np
 import matplotlib.pyplot as plt
-from src.utils.dataset import load_embeddings
 
 import umap
 
-def visualize_embeddings_umap(embeddings_folder_path: str, batch_size: int = 32, random_state: int = 42) -> None:
+def visualize_embeddings_umap(embeddings_loader: list, random_state: int = 42) -> None:
 
-    # Load embeddings
-    loader = load_embeddings(embeddings_folder_path, batch_size=batch_size, shuffle=True)
-   
     # Extract embeddings and labels from the data loader
     embeddings = []
     labels = []
-    for batch in loader:
+    for batch in embeddings_loader:
         inputs, targets = batch
         embeddings.append(inputs.numpy())  # Convert tensor to numpy array
         labels.append(targets.numpy())    # Convert tensor to numpy array
@@ -22,8 +18,10 @@ def visualize_embeddings_umap(embeddings_folder_path: str, batch_size: int = 32,
     labels = np.hstack(labels)
 
     # Apply UMAP
+    print("Applying UMAP...")
     umap_model = umap.UMAP(n_components=2, random_state=random_state)
     umap_embeddings = umap_model.fit_transform(embeddings)
+    print("UMAP applied.")
 
     # Plot UMAP results
     plt.figure(figsize=(10, 8))
