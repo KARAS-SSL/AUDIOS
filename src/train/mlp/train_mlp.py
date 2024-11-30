@@ -31,6 +31,7 @@ def train_mlp(
     randomness_seed: int,
     device: str,
 ) -> float:
+    print("Starting training...")
     # Set random seed for reproducibility
     set_random_seeds(randomness_seed)
 
@@ -173,24 +174,24 @@ def train_mlp(
     plt.figure(figsize=(10, 6))
     plt.plot(range(1, len(train_losses) + 1), train_losses, label="Train Loss", marker="o")
     plt.plot(range(1, len(val_losses) + 1), val_losses, label="Validation Loss", marker="o")
-    plt.title("Training and Validation Loss")
-    plt.xlabel("Epochs")
-    plt.ylabel("Loss")
-    plt.legend()
+    plt.title("Training and Validation Loss", fontsize=16)
+    plt.xlabel("Epochs", fontsize=16)
+    plt.ylabel("Loss", fontsize=16)
+    plt.legend(fontsize=12)
     plt.grid(True)
     plt.savefig(os.path.join(run_folder, "loss_plot.png"))
-    plt.show()
+    # plt.show()
 
     # Plot accuracy curve
     plt.figure(figsize=(10, 6))
     plt.plot(range(1, len(val_accuracies) + 1), val_accuracies, label="Validation Accuracy", marker="o", color="green")
-    plt.title("Validation Accuracy")
-    plt.xlabel("Epochs")
-    plt.ylabel("Accuracy")
-    plt.legend()
+    plt.title("Validation Accuracy", fontsize=16)
+    plt.xlabel("Epochs", fontsize=16)
+    plt.ylabel("Accuracy", fontsize=16)
+    plt.legend(fontsize=12)
     plt.grid(True)
     plt.savefig(os.path.join(run_folder, "accuracy_plot.png"))
-    plt.show()
+    # plt.show()
     
     print(f"Training completed. Logs, models, and hyperparameters saved in {run_folder}.")
 

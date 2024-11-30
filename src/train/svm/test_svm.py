@@ -52,13 +52,14 @@ def test_svm(test_embeddings_folder_path: str, model_folder: str, gender: str = 
     
     # Confusion Matrix
     cm = confusion_matrix(test_targets, test_predictions)
+    cm = cm.astype('float') / cm.sum(axis=1, keepdims=True) * 100
     
     # Plot Confusion Matrix
     plt.figure(figsize=(6, 5))
-    sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=["Fake", "Real"], yticklabels=["Fake", "Real"])
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title('Confusion Matrix')
+    sns.heatmap(cm, annot=True, fmt=".2f", cmap="Blues", xticklabels=["Fake", "Real"], yticklabels=["Fake", "Real"])
+    plt.xlabel('Predicted', fontsize=16)
+    plt.ylabel('True', fontsize=16)
+    plt.title('Confusion Matrix', fontsize=16)
     plt.savefig(os.path.join(model_folder, "confusion_matrix.png"))
     plt.show()
     

@@ -9,12 +9,15 @@ import soundfile as sf
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+from scipy.signal import spectrogram
+
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset, DataLoader
 from typing import List, Tuple
 
 tqdm.pandas()
 
+import matplotlib.pyplot as plt
 
 # ----------------------------------------------------------------
 # AUDIO FILE PROPERTIES FUNCTIONS
@@ -268,6 +271,70 @@ def normalize_dataset(dataset_meta_path: str, new_dataset_folder_path: str, targ
     print("Dataset normalized. New dataset saved to ", new_dataset_folder_path)
 
 
+
+from audiomentations import AddGaussianNoise
+
+# Function to add noise to an audio file
+def add_noise_audio_file(filename: str, dataset_folder_path: str, output_path: str) -> None:
+    audio = load_audio_file(filename, dataset_folder_path)
+
+    if audio is None:
+        return
+
+    y, sr = audio 
+    transform = AddGaussianNoise(
+        min_amplitude=0.001,
+        max_amplitude=0.015,
+        p=1.0
+    )
+    new = transform(y, sample_rate=sr)
+    
+    # frequencies, times, Sxx = spectrogram(y, sr)
+    # # Plot the spectrogram
+    # plt.figure(figsize=(10, 6))
+    # plt.pcolormesh(times, frequencies, 10 * np.log10(Sxx), shading='gouraud')
+    # plt.title("Spectrogram")
+    # plt.ylabel("Frequency (Hz)")
+    # plt.xlabel("Time (s)")
+    # plt.colorbar(label="Power (dB)")
+    # plt.tight_layout()
+    # plt.show()
+    #
+    # frequencies, times, Sxx = spectrogram(new, sr)
+    # # Plot the spectrogram
+    # plt.figure(figsize=(10, 6))
+    # plt.pcolormesh(times, frequencies, 10 * np.log10(Sxx), shading='gouraud')
+    # plt.title("Spectrogram")
+    # plt.ylabel("Frequency (Hz)")
+    # plt.xlabel("Time (s)")
+    # plt.colorbar(label="Power (dB)")
+    # plt.tight_layout()
+    # plt.show()    
+
+
+    output_path = os.path.join(output_path, os.path.dirname(filename))
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
+    output_file = os.path.join(output_path, os.path.basename(filename))
+    sf.write(output_file, new, sr)
+    
+def get_nth_parent(path, n):
+    for _ in range(n):
+        path = os.path.dirname(path)
+    return path 
+
+def add_noise_dataset(dataset_meta_path: str, new_dataset_folder_path: str) -> None:
+    dataset_folder_path = get_nth_parent(dataset_meta_path, 3)
+    dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
+
+    print("Adding noise to dataset...")
+    for filename in tqdm(dataset_df["file"]):
+        add_noise_audio_file(filename, dataset_folder_path, new_dataset_folder_path)
+    print("Done!")
+    
+    generate_dataset_files_meta(new_dataset_folder_path) 
+    print("Dataset noisy. New dataset saved to ", new_dataset_folder_path)
+ 
 #----------------------------------------------------------------
 # DATASET SPLIT FUNCTIONS
 
@@ -444,6 +511,7 @@ def load_embeddings(
     Returns:
         DataLoader: PyTorch DataLoader for training.
     """
+    print(f"Loading dataset from {embeddings_folder_path}...")
     dataset = VoiceEmbeddingsDataset(embeddings_folder_path, gender)
     dataloader = DataLoader(
         dataset, 
@@ -451,4 +519,5 @@ def load_embeddings(
         shuffle=shuffle, 
         num_workers=num_workers, 
     )
+    print("Done!")
     return dataloader

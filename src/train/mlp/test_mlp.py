@@ -86,13 +86,15 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
 
     # Compute confusion matrix
     conf_matrix = confusion_matrix(all_true_labels, all_pred_labels)
+    conf_matrix = conf_matrix.astype('float') / conf_matrix.sum(axis=1, keepdims=True) * 100
+
 
     # Plot confusion matrix
     plt.figure(figsize=(6, 5))
-    sns.heatmap(conf_matrix, annot=True, fmt="d", cmap="Blues", xticklabels=["Fake", "Real"], yticklabels=["Fake", "Real"])
-    plt.xlabel('Predicted')
-    plt.ylabel('True')
-    plt.title('Confusion Matrix')
+    sns.heatmap(conf_matrix, annot=True, fmt=".2f", cmap="Blues", xticklabels=["Fake", "Real"], yticklabels=["Fake", "Real"])
+    plt.xlabel('Predicted', fontsize=16)
+    plt.ylabel('True', fontsize=16)
+    plt.title('Confusion Matrix', fontsize=16)
     plt.savefig(os.path.join(run_path, "confusion_matrix.png"))
     plt.show()
 
@@ -105,10 +107,10 @@ def test_mlp(test_embeddings_folder_path: str, run_path: str, use_best_model: bo
     plt.figure()
     plt.plot(fpr, tpr, label="ROC Curve")
     plt.plot([0, 1], [0, 1], 'k--', label="Random Guess")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("ROC Curve")
-    plt.legend()
+    plt.xlabel("False Positive Rate", fontsize=16)
+    plt.ylabel("True Positive Rate", fontsize=16)
+    plt.title("ROC Curve", fontsize=16)
+    plt.legend(fontsize=12)
     plt.savefig(os.path.join(run_path, "roc_curve.png"))
     plt.show()
 

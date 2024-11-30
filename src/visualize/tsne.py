@@ -26,26 +26,31 @@ def visualize_embeddings_tsne(embeddings_folder_path: str, batch_size: int = 32,
     perplexity = 30 if n_samples > 30 else n_samples - 1
 
     # Apply t-SNE
-    tsne = TSNE(n_components=2, perplexity=perplexity, random_state=42)
+    tsne = TSNE(n_components=2, perplexity=perplexity, random_state=random_state)
     tsne_embeddings = tsne.fit_transform(embeddings)
     
     # Plot t-SNE results
+    # plt.figure(figsize=(10, 8))
+    # for label, color, marker in zip([0, 1], ['#6699CC', '#893168'], ['o', 's']):
+    #     idx = labels == label
+    #     plt.scatter(
+    #         tsne_embeddings[idx, 0],
+    #         tsne_embeddings[idx, 1],
+    #         color=color,
+    #         label=f"Class {label} ({'Fake' if label == 0 else 'Real'})",
+    #         alpha=0.7,
+    #         marker=marker
+    #     )
+   
     plt.figure(figsize=(10, 8))
-    for label, color, marker in zip([0, 1], ['#6699CC', '#893168'], ['o', 's']):
-        idx = labels == label
-        plt.scatter(
-            tsne_embeddings[idx, 0],
-            tsne_embeddings[idx, 1],
-            color=color,
-            label=f"Class {label} ({'Fake' if label == 0 else 'Real'})",
-            alpha=0.7,
-            marker=marker
-        )
+    scatter = plt.scatter(tsne_embeddings[:, 0], tsne_embeddings[:, 1], c=labels, cmap='viridis', alpha=0.7)
+        
+    plt.title("t-SNE Visualization of Embeddings", fontsize=16)
+    plt.xlabel("t-SNE Dimension 1", fontsize=16)
+    plt.ylabel("t-SNE Dimension 2", fontsize=16)
+    # plt.legend(title="Classes", loc='best')
+    plt.colorbar(scatter, label="Labels")
     
-    plt.title("t-SNE Visualization of Embeddings")
-    plt.xlabel("t-SNE Dimension 1")
-    plt.ylabel("t-SNE Dimension 2")
-    plt.legend(title="Classes", loc='best')
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
+    # plt.grid(True, alpha=0.3)
+    # plt.tight_layout()
     plt.show()
