@@ -61,7 +61,7 @@ def train_mlp(
     model = MLP(input_dim, hidden_dim_1, output_dim, dropout_rate).to(device)
     loss_func = nn.BCEWithLogitsLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.5, patience=3)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode="min", factor=0.6, patience=3)
 
     # Initialize variables for training loop
     train_losses, val_losses, val_accuracies = [], [], []
@@ -80,7 +80,7 @@ def train_mlp(
             inputs, targets = inputs.to(device), targets.to(device).float()
             optimizer.zero_grad()
             outputs = model(inputs).squeeze()
-            loss = loss_func(outputs, targets)
+            loss = loss_func(outputs, targets)            
             loss.backward()
             optimizer.step()
             train_loss += loss.item()

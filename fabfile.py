@@ -3,7 +3,7 @@ import json
 import os
 from fabric import task
 
-from src.utils.dataset    import add_duration_dataset, add_amplitude_dataset, display_info_dataset, generate_dataset_files_meta, generate_dataset_people_meta, normalize_dataset, split_full_dataset, add_noise_dataset
+from src.utils.dataset import add_duration_dataset, add_amplitude_dataset, display_info_dataset, generate_dataset_files_meta, generate_dataset_people_meta, normalize_dataset, split_full_dataset, add_noise_dataset, load_embeddings
 
 from src.utils.embeddings import generate_embeddings_wav2vec, generate_embeddings_wav2vec2_bert, generate_embeddings_hubert
 
@@ -63,8 +63,8 @@ def NormalizeDataset(c, use_same_dir=False):
 
 @task
 def AddNoise(c, use_same_dir=False):
-    dataset_path     = "datasets/release/splits/by_file/files-downstream_test.csv"
-    new_dataset_path = "datasets/noisy/"
+    dataset_path     = "datasets/release/files-metadata.csv" 
+    new_dataset_path = "datasets/release/"
     add_noise_dataset(dataset_path, new_dataset_path)
     
 @task
@@ -113,12 +113,11 @@ def GenerateEmbeddingsWav2vec2(c):
     """Generates embeddings for the dataset using Wav2vec."""
 
     # Dataset
-    dataset_folder_path = "datasets/noisy"
+    dataset_folder_path = "datasets/release"
     dataset_meta_path   = [
-        os.path.join(dataset_folder_path, "files-metadata.csv"),
-        # os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_train.csv"),
-        # os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_val.csv"),
-        # os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_test.csv")    
+        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_train.csv"),
+        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_val.csv"),
+        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_test.csv")    
     ]
     sample_rate         = 16000
 
@@ -132,7 +131,7 @@ def GenerateEmbeddingsWav2vec2(c):
         os.makedirs(embeddings_path, exist_ok=True)
     elif isinstance(dataset_meta_path, list):
         split_name = [os.path.basename(path).split(".")[0] for path in dataset_meta_path]
-        embeddings_path = [os.path.join("embeddings", model_id.replace("/", "-")+"-noisy", name) for name in split_name]
+        embeddings_path = [os.path.join("embeddings", model_id.replace("/", "-"), name) for name in split_name]
         for path in embeddings_path:
             os.makedirs(path, exist_ok=True)
 
@@ -202,13 +201,13 @@ def GenerateEmbeddingsHubert(c):
 
 @task
 def VisualizeEmbeddingsUMAP(c):
-    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train/"
+    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train/"
     loader = load_embeddings(train_embeddings_folder_path)
     visualize_embeddings_umap(loader) 
 
 @task
 def VisualizeEmbeddingsTSNE(c):
-    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train/" 
+    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train/" 
     loader = load_embeddings(train_embeddings_folder_path)
     visualize_embeddings_tsne(loader) 
 
@@ -230,7 +229,7 @@ def objective_mlp(trial, train_embeddings_loader, val_embeddings_loader, train_e
         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
         "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3, log=True),
         "dropout": trial.suggest_float("dropout", 0.2, 0.5),
-        "weight_decay": trial.suggest_float("weight_decay", 1e-6, 1e-2, log=True),
+        "weight_decay": trial.suggest_float("weight_decay", 1e-8, 1e1, log=True),
         "hidden_dim_1": trial.suggest_categorical("hidden_dim_1", [128, 256, 512]),
         "output_dim": 1,
         "randomness_seed": randomness_seed
@@ -332,8 +331,8 @@ def OptimizeHyperparameters(c, prediction_head: str):
     os.makedirs(study_folder, exist_ok=True)
 
     # Load embeddings
-    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train"
-    val_embeddings_folder_path   = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_val"
+    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
+    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
     train_embeddings_loader = load_embeddings(train_embeddings_folder_path)
     val_embeddings_loader   = load_embeddings(val_embeddings_folder_path)
 
@@ -342,7 +341,7 @@ def OptimizeHyperparameters(c, prediction_head: str):
     if prediction_head == "mlp":
         study.optimize(
             lambda trial: objective_mlp(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, study_folder),
-            n_trials=30
+            n_trials=100
         )
     elif prediction_head == "svm":
         study.optimize(
@@ -375,18 +374,18 @@ def TrainModel(c):
     train_embeddings_loader = load_embeddings(train_embeddings_folder_path)
     val_embeddings_loader   = load_embeddings(val_embeddings_folder_path)
 
-    prediction_head = "rf"
+    prediction_head = "mlp"
     output_path     = "runs"
 
     if prediction_head == "mlp":
         hyperparameters = {
-            "epochs": 5,
-            "batch_size": 64,
-            "learning_rate": 0.0001,
-            "patience": 5,
-            "dropout": 0.33,
-            "weight_decay": 1e-4,
-            "hidden_dim_1": 128,
+            "epochs": 50,
+            "batch_size": 128,
+            "learning_rate": 3.32e-05,
+            "patience": 10,
+            "dropout": 0.38,
+            "weight_decay": 0.03,
+            "hidden_dim_1": 256,
             "output_dim": 1,
             "randomness_seed": randomness_seed
         }
@@ -414,7 +413,7 @@ def TrainModel(c):
 @task
 def TestModel(c):
     
-    test_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base-noisy/files-metadata" 
+    test_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_test" 
     # best_hyperparameters_path     = "runs/run4"
     # prediction_head               = "mlp"
     gender                        = ""
@@ -423,9 +422,9 @@ def TestModel(c):
     #     best_hyperparameters = json.load(f)
     #     best_model_idx       = best_hyperparameters.get("best_trial_number")
         
-    # model_folder                  = "runs/mlp_study1/run12"
-    model_folder                  = "runs/run4"
-    prediction_head               = "rf" 
+    model_folder                  = "runs/mlp_study3/run22"
+    # model_folder                  = "runs/run4"
+    prediction_head               = "mlp" 
 
     # model_folder                  = "runs/run5"
     

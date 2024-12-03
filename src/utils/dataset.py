@@ -289,42 +289,21 @@ def add_noise_audio_file(filename: str, dataset_folder_path: str, output_path: s
     )
     new = transform(y, sample_rate=sr)
     
-    # frequencies, times, Sxx = spectrogram(y, sr)
-    # # Plot the spectrogram
-    # plt.figure(figsize=(10, 6))
-    # plt.pcolormesh(times, frequencies, 10 * np.log10(Sxx), shading='gouraud')
-    # plt.title("Spectrogram")
-    # plt.ylabel("Frequency (Hz)")
-    # plt.xlabel("Time (s)")
-    # plt.colorbar(label="Power (dB)")
-    # plt.tight_layout()
-    # plt.show()
-    #
-    # frequencies, times, Sxx = spectrogram(new, sr)
-    # # Plot the spectrogram
-    # plt.figure(figsize=(10, 6))
-    # plt.pcolormesh(times, frequencies, 10 * np.log10(Sxx), shading='gouraud')
-    # plt.title("Spectrogram")
-    # plt.ylabel("Frequency (Hz)")
-    # plt.xlabel("Time (s)")
-    # plt.colorbar(label="Power (dB)")
-    # plt.tight_layout()
-    # plt.show()    
-
-
     output_path = os.path.join(output_path, os.path.dirname(filename))
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     output_file = os.path.join(output_path, os.path.basename(filename))
     sf.write(output_file, new, sr)
-    
+ 
 def get_nth_parent(path, n):
     for _ in range(n):
         path = os.path.dirname(path)
     return path 
 
+
 def add_noise_dataset(dataset_meta_path: str, new_dataset_folder_path: str) -> None:
-    dataset_folder_path = get_nth_parent(dataset_meta_path, 3)
+    # dataset_folder_path = get_nth_parent(dataset_meta_path, 3)
+    dataset_folder_path = os.path.dirname(dataset_meta_path)
     dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
 
     print("Adding noise to dataset...")
@@ -332,6 +311,7 @@ def add_noise_dataset(dataset_meta_path: str, new_dataset_folder_path: str) -> N
         add_noise_audio_file(filename, dataset_folder_path, new_dataset_folder_path)
     print("Done!")
     
+    generate_dataset_people_meta(new_dataset_folder_path)
     generate_dataset_files_meta(new_dataset_folder_path) 
     print("Dataset noisy. New dataset saved to ", new_dataset_folder_path)
  

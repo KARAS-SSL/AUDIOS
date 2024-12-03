@@ -29,10 +29,14 @@ class MLP(nn.Module):
         # Define layers
         self.fc1 = nn.Linear(input_dim, hidden_dim)
         self.dropout1 = nn.Dropout(dropout_prob)  # Dropout for regularization 
-        self.fc2 = nn.Linear(hidden_dim, output_dim)
+        self.fc2 = nn.Linear(hidden_dim//2, output_dim)
+        self.fc3 = nn.Linear(hidden_dim, hidden_dim//2)
     
     def forward(self, x):
         x = self.fc1(x)
+        x = self.activation(x)
+        x = self.dropout1(x) 
+        x = self.fc3(x)
         x = self.activation(x)
         x = self.dropout1(x)
         x = self.fc2(x)
