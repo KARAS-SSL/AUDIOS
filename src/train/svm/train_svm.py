@@ -67,8 +67,7 @@ def train_svm(train_loader: list, val_loader: list, train_embeddings_folder_path
     val_predictions = svm.predict(val_inputs)
     val_accuracy = accuracy_score(val_targets, val_predictions)
     val_report = classification_report(val_targets, val_predictions, output_dict=True)
-    val_scores = svm.decision_function(val_inputs)
-    val_eer = compute_eer(val_targets, val_scores)
+    val_eer, val_eer_threshold = compute_eer(val_targets, val_predictions)
     
     # Save model and scaler
     joblib.dump(svm, os.path.join(run_folder, "svm_model.joblib"))

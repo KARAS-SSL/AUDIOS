@@ -260,7 +260,7 @@ def objective_svm(trial, train_embeddings_loader, val_embeddings_loader, train_e
     hyperparameters = {
         "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
         "C": trial.suggest_float("C", 0.1, 10.0),
-        "kernel": trial.suggest_categorical("kernel", ["linear", "rbf", "sigmoid"]),
+        "kernel": "rbf",
         "gamma": trial.suggest_categorical("gamma", ["scale", "auto"]),
         "randomness_seed": randomness_seed
 
@@ -323,18 +323,18 @@ def OptimizeHyperparameters(c, prediction_head: str):
     if prediction_head != "mlp" and prediction_head != "svm" and prediction_head != "rf":
         raise ValueError(f"Invalid prediction head: {prediction_head}")
 
+    # Load embeddings
+    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
+    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
+    train_embeddings_loader = load_embeddings(train_embeddings_folder_path)
+    val_embeddings_loader   = load_embeddings(val_embeddings_folder_path)
+
     # Create output folder for the study runs
     output_path = "runs"
     os.makedirs(output_path, exist_ok=True)
     study_number = len([f for f in os.listdir(output_path) if f.startswith(f"{prediction_head}_study")])
     study_folder = os.path.join(output_path, f"{prediction_head}_study{study_number}")
     os.makedirs(study_folder, exist_ok=True)
-
-    # Load embeddings
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
-    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
-    train_embeddings_loader = load_embeddings(train_embeddings_folder_path)
-    val_embeddings_loader   = load_embeddings(val_embeddings_folder_path)
 
     # Optimize the hyperparameters
     study = optuna.create_study(direction="minimize")

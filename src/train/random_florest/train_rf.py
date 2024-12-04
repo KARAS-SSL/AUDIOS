@@ -57,7 +57,7 @@ def train_rf(train_loader: list, val_loader: list, train_embeddings_folder_path:
     val_predictions = rf.predict(val_inputs)
     val_accuracy = accuracy_score(val_targets, val_predictions)
     val_report = classification_report(val_targets, val_predictions, output_dict=True)
-    val_eer = compute_eer(val_targets, val_predictions)
+    val_eer, val_eer_threshold = compute_eer(val_targets, val_predictions)
     
     # Save model and scaler
     joblib.dump(rf, os.path.join(run_folder, "random_forest_model.joblib"))
