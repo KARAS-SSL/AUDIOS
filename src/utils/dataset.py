@@ -1,29 +1,36 @@
 import os
-from typing import Tuple
 
 import librosa
 import numpy as np
 import pandas as pd
-import torch
 import soundfile as sf
+from audiomentations import AddGaussianNoise
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from scipy.signal import spectrogram
-
-from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import Dataset, DataLoader
-from typing import List, Tuple
-
 tqdm.pandas()
-
-import matplotlib.pyplot as plt
 
 # ----------------------------------------------------------------
 # AUDIO FILE PROPERTIES FUNCTIONS
 
-# Function to load an audio file
-def load_audio_file(filename: str, dataset_folder_path: str) -> Tuple[np.ndarray, int | float] | None:
+def load_audio_file(filename: str, dataset_folder_path: str) -> tuple[np.ndarray, int | float] | None:
+    """
+    Load an audio file and return its waveform and sample rate.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the audio file.
+    dataset_folder_path : str
+        The path to the dataset folder.
+
+    Returns
+    -------
+    y : np.ndarray
+        The waveform of the audio file.
+    sr : int | float
+        The sample rate of the audio file.
+    """
     try:
         audio_path = os.path.join(dataset_folder_path, filename)
         return librosa.load(audio_path, sr=None)
@@ -32,28 +39,116 @@ def load_audio_file(filename: str, dataset_folder_path: str) -> Tuple[np.ndarray
         return None
 
 
-# Function to get an audio duration
 def audio_duration(filename: str, dataset_folder_path: str) -> float | None:
+    """
+    Get the duration of an audio file.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the audio file.
+    dataset_folder_path : str
+        The path to the dataset folder.
+
+    Returns
+    -------
+    float
+        The duration of the audio file in seconds.
+    """
     audio = load_audio_file(filename, dataset_folder_path)
     if audio is not None:
         y, sr = audio
         return librosa.get_duration(y=y, sr=sr)
 
 
-# Function to get an audio amplitude
 def audio_amplitude(filename: str, dataset_folder_path: str) -> float | None:
+    """
+    Get the maximum amplitude of an audio file.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the audio file.
+    dataset_folder_path : str
+        The path to the dataset folder.
+
+    Returns
+    -------
+    float
+        The maximum amplitude of the audio file.
+    """
     audio = load_audio_file(filename, dataset_folder_path)
     if audio is not None:
         y, sr = audio
         return np.max(np.abs(y))
 
 
+def calculate_durations(dataset_meta_path: str) -> pd.DataFrame:
+    """
+    Calculate the duration of each audio file in the dataset.
+
+    Parameters
+    ----------
+    dataset_meta_path : str
+        The path to the dataset's metadata CSV file.
+
+    Returns
+    -------
+    dataset_df : pd.DataFrame
+        A DataFrame containing the contents of the dataset's metadata CSV file plus each audio's duration.
+    """
+    dataset_folder_path = os.path.dirname(dataset_meta_path)
+    dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
+
+    print("Calculating durations...")
+    dataset_df["duration"] = dataset_df["file"].progress_apply(
+        lambda filename: audio_duration(filename, dataset_folder_path)
+    )
+    print("Durations calculation done.")
+    return dataset_df
+
+
+def calculate_amplitudes(dataset_meta_path: str) -> pd.DataFrame:
+    """
+    Calculate the amplitude of each audio file in the dataset.
+
+    Parameters
+    ----------
+    dataset_meta_path : str
+        The path to the dataset's metadata CSV file.
+
+    Returns
+    -------
+    dataset_df : pd.DataFrame
+        A DataFrame containing the contents of the dataset's metadata CSV file plus each audio's amplitude.
+    """
+    dataset_folder_path = os.path.dirname(dataset_meta_path)
+    dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
+
+    print("Calculating amplitudes...")
+    dataset_df["amplitude"] = dataset_df["file"].progress_apply(
+        lambda filename: audio_amplitude(filename, dataset_folder_path)
+    )
+    print("Amplitudes calculation done.")
+    return dataset_df
+
+
 # ----------------------------------------------------------------
 # DATASET CSV FUNCTIONS
 
-# Function to generate a CSV file from a dataset
-# Create a list containing the path, speaker's name, id and gender, and label for each audio file.
-def generate_dataset_files_meta(dataset_folder_path: str):
+def generate_dataset_files_meta(dataset_folder_path: str) -> None:
+    """
+    Generate a CSV file from a dataset containing the path, speaker's name, id and gender, and label for each audio file.
+
+    Parameters
+    ----------
+    dataset_folder_path : str
+        The path to the dataset folder.
+
+    Returns
+    -------
+    None
+    """
     fake_audios_path = os.path.join(dataset_folder_path, "fake_voices")
     real_audios_path = os.path.join(dataset_folder_path, "real_voices")
     files = []
@@ -103,9 +198,19 @@ def generate_dataset_files_meta(dataset_folder_path: str):
     print(f"Metadata CSV written to {output_file}")
 
 
-# Function to generate a CSV file from a dataset
-# Create a list containing the name, id, gender, number of spoofed and bona-fide files and path to said files for each person.
 def generate_dataset_people_meta(dataset_folder_path: str) -> None:
+    """
+    Generate a CSV file from a dataset containing the name, id, gender, number of spoofed and bona-fide files (and path to said files) for each person.
+
+    Parameters
+    ----------
+    dataset_folder_path : str
+        The path to the dataset folder.
+
+    Returns
+    -------
+    None
+    """
     fake_audios_path = os.path.join(dataset_folder_path, "fake_voices")
     real_audios_path = os.path.join(dataset_folder_path, "real_voices")
     people = {}
@@ -151,7 +256,9 @@ def generate_dataset_people_meta(dataset_folder_path: str) -> None:
 
         if speaker_name in people:
             people[speaker_name]["bonafide_count"] = len(files)
-            people[speaker_name]["bonafide_folder"] = os.path.join("real_voices", folder)
+            people[speaker_name]["bonafide_folder"] = os.path.join(
+                "real_voices", folder
+            )
         else:
             people[speaker_name] = {
                 "gender": speaker_gender,
@@ -172,41 +279,41 @@ def generate_dataset_people_meta(dataset_folder_path: str) -> None:
     print(f"Metadata CSV written to {output_file}")
 
 
-# Function to calculate the duration of each audio file
-def calculate_durations(dataset_meta_path: str) -> pd.DataFrame:
-    dataset_folder_path = os.path.dirname(dataset_meta_path)
-    dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
-
-    print("Calculating durations...")
-    dataset_df["duration"] = dataset_df["file"].progress_apply(
-        lambda filename: audio_duration(filename, dataset_folder_path)
-    )
-    print("Durations calculation done.")
-    return dataset_df
-
-
-# Function to add duration information to the dataset's metadata
 def add_duration_dataset(dataset_meta_path: str, new_dataset_meta_path: str) -> None:
+    """
+    Add duration information to the dataset's metadata CSV file.
+
+    Parameters
+    ----------
+    dataset_meta_path : str
+        The path to the dataset's metadata CSV file.
+    new_dataset_meta_path : str
+        The path to the new dataset's metadata CSV file with duration added.
+
+    Returns
+    -------
+    None
+    """
     dataset_df = calculate_durations(dataset_meta_path)
     dataset_df.to_csv(new_dataset_meta_path, index=False)
     print("Duration added to dataset. New dataset saved to ", new_dataset_meta_path)
 
 
-# Function to calculate the amplitude of each audio file
-def calculate_amplitudes(dataset_meta_path: str) -> pd.DataFrame:
-    dataset_folder_path = os.path.dirname(dataset_meta_path)
-    dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
-
-    print("Calculating amplitudes...")
-    dataset_df["amplitude"] = dataset_df["file"].progress_apply(
-        lambda filename: audio_amplitude(filename, dataset_folder_path)
-    )
-    print("Amplitudes calculation done.")
-    return dataset_df
-
-
-# Function to add amplitude information to the dataset's metadata
 def add_amplitude_dataset(dataset_meta_path: str, new_dataset_meta_path: str) -> None:
+    """
+    Add amplitude information to the dataset's metadata CSV file.
+
+    Parameters
+    ----------
+    dataset_meta_path : str
+        The path to the dataset's metadata CSV file.
+    new_dataset_meta_path : str
+        The path to the new dataset's metadata CSV file with amplitude added.
+
+    Returns
+    -------
+    None
+    """
     dataset_df = calculate_amplitudes(dataset_meta_path)
     dataset_df.to_csv(new_dataset_meta_path, index=False)
     print("Amplitude added to dataset. New dataset saved to ", new_dataset_meta_path)
@@ -215,24 +322,72 @@ def add_amplitude_dataset(dataset_meta_path: str, new_dataset_meta_path: str) ->
 # ----------------------------------------------------------------
 # NORMALIZATION FUNCTIONS
 
-# Function to normalize audio to a target RMS energy level
 def rms_normalize(audio: np.ndarray, target_rms: float = 0.1) -> np.ndarray:
+    """
+    Normalize an audio to a target RMS energy level.
+
+    Parameters
+    ----------
+    audio : np.ndarray
+        The audio waveform to be normalized.
+    target_rms : float, optional
+        The target RMS energy level. Default is 0.1.
+
+    Returns
+    -------
+    np.ndarray
+        The normalized audio.
+    """
     rms = np.sqrt(np.mean(audio**2))
     if rms == 0:
         return audio  # Avoid division by zero
     return audio * (target_rms / rms)
 
 
-# Function to normalize audio to have a peak amplitude of 1.
 def peak_normalize(audio: np.ndarray) -> np.ndarray:
+    """
+    Normalize an audio to have a peak amplitude of 1.
+
+    Parameters
+    ----------
+    audio : np.ndarray
+        The audio waveform to be normalized.
+
+    Returns
+    -------
+    np.ndarray
+        The normalized audio.
+    """
     peak = np.max(np.abs(audio))
     if peak == 0:
         return audio  # Avoid division by zero
     return audio / peak
 
 
-# Function to normalize an audio file
-def normalize_audio_file(filename: str, dataset_folder_path: str, output_path: str, target_rms: float | None = None) -> None:
+def normalize_audio_file(
+    filename: str,
+    dataset_folder_path: str,
+    output_path: str,
+    target_rms: float | None = None,
+) -> None:
+    """
+    Normalize an audio file. If target_rms is None, peak normalization is used, otherwise, RMS normalization is used.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the audio file to be normalized.
+    dataset_folder_path : str
+        The path to the dataset folder.
+    output_path : str
+        The path to save the normalized audio file.
+    target_rms : float, optional
+        The target RMS energy level. Default is None.
+
+    Returns
+    -------
+    None
+    """
     audio = load_audio_file(filename, dataset_folder_path)
 
     if audio is None:
@@ -253,8 +408,27 @@ def normalize_audio_file(filename: str, dataset_folder_path: str, output_path: s
     sf.write(output_file, normalized_audio, sr)
 
 
-# Function to normalize the audio amplitude of the dataset
-def normalize_dataset(dataset_meta_path: str, new_dataset_folder_path: str, target_rms: float | None = None) -> None:
+def normalize_dataset(
+    dataset_meta_path: str,
+    new_dataset_folder_path: str,
+    target_rms: float | None = None,
+) -> None:
+    """
+    Normalize the audio amplitude of the dataset. If target_rms is None, peak normalization is used, otherwise, RMS normalization is used.
+
+    Parameters
+    ----------
+    dataset_meta_path : str
+        The path to the dataset's metadata CSV file.
+    new_dataset_folder_path : str
+        The path to save the normalized dataset.
+    target_rms : float, optional
+        The target RMS energy level. Default is None.
+
+    Returns
+    -------
+    None
+    """
     dataset_folder_path = os.path.dirname(dataset_meta_path)
     dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
 
@@ -271,38 +445,57 @@ def normalize_dataset(dataset_meta_path: str, new_dataset_folder_path: str, targ
     print("Dataset normalized. New dataset saved to ", new_dataset_folder_path)
 
 
+# ----------------------------------------------------------------
+# NOISE FUNCTIONS
 
-from audiomentations import AddGaussianNoise
-
-# Function to add noise to an audio file
 def add_noise_audio_file(filename: str, dataset_folder_path: str, output_path: str) -> None:
+    """
+    Add noise to an audio file.
+
+    Parameters
+    ----------
+    filename : str
+        The name of the audio file to which noise will be added.
+    dataset_folder_path : str
+        The path to the dataset folder.
+    output_path : str
+        The path to save the "noisy" audio file.
+
+    Returns
+    -------
+    None
+    """
     audio = load_audio_file(filename, dataset_folder_path)
 
     if audio is None:
         return
 
-    y, sr = audio 
-    transform = AddGaussianNoise(
-        min_amplitude=0.001,
-        max_amplitude=0.015,
-        p=1.0
-    )
+    y, sr = audio
+    transform = AddGaussianNoise(min_amplitude=0.001, max_amplitude=0.015, p=1.0)
     new = transform(y, sample_rate=sr)
-    
+
     output_path = os.path.join(output_path, os.path.dirname(filename))
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     output_file = os.path.join(output_path, os.path.basename(filename))
     sf.write(output_file, new, sr)
- 
-def get_nth_parent(path, n):
-    for _ in range(n):
-        path = os.path.dirname(path)
-    return path 
 
 
 def add_noise_dataset(dataset_meta_path: str, new_dataset_folder_path: str) -> None:
-    # dataset_folder_path = get_nth_parent(dataset_meta_path, 3)
+    """
+    Add noise to each audio of the dataset.
+
+    Parameters
+    ----------
+    dataset_meta_path : str
+        The path to the dataset's metadata CSV file.
+    new_dataset_folder_path : str
+        The path to save the "noisy" dataset.
+
+    Returns
+    -------
+    None
+    """
     dataset_folder_path = os.path.dirname(dataset_meta_path)
     dataset_df          = pd.read_csv(dataset_meta_path, keep_default_na=False)
 
@@ -310,15 +503,16 @@ def add_noise_dataset(dataset_meta_path: str, new_dataset_folder_path: str) -> N
     for filename in tqdm(dataset_df["file"]):
         add_noise_audio_file(filename, dataset_folder_path, new_dataset_folder_path)
     print("Done!")
-    
+
+    # Generate new csv files for the "noisy" dataset
     generate_dataset_people_meta(new_dataset_folder_path)
-    generate_dataset_files_meta(new_dataset_folder_path) 
-    print("Dataset noisy. New dataset saved to ", new_dataset_folder_path)
- 
-#----------------------------------------------------------------
+    generate_dataset_files_meta(new_dataset_folder_path)
+    print("Noise added. New dataset saved to ", new_dataset_folder_path)
+
+
+# ----------------------------------------------------------------
 # DATASET SPLIT FUNCTIONS
 
-# Function to split a dataset in pretext and downstream
 def split_dataset(
     full_df: pd.DataFrame,
     pretext_train_percentage: float,
@@ -326,8 +520,33 @@ def split_dataset(
     downstream_train_percentage: float,
     downstream_val_percentage: float,
     downstream_test_percentage: float,
-    random_state: int
-) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    random_state: int,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """
+    Split a dataset in pretext (training, validation) and downstream (training, validation, test) sets.
+
+    Parameters
+    ----------
+    full_df : pd.DataFrame
+        The full dataset to split.
+    pretext_train_percentage : float
+        The percentage of the dataset to use for pretext training.
+    pretext_val_percentage : float
+        The percentage of the dataset to use for pretext validation.
+    downstream_train_percentage : float
+        The percentage of the dataset to use for downstream training.
+    downstream_val_percentage : float
+        The percentage of the dataset to use for downstream validation.
+    downstream_test_percentage : float
+        The percentage of the dataset to use for downstream testing.
+    random_state : int
+        The random seed to use for the split.
+
+    Returns
+    -------
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]
+        A tuple containing the 5 split sets.
+    """
     # Split dataset in pretext and downstream
     pretext_percentage = pretext_train_percentage + pretext_val_percentage
     pretext_df, downstream_df = train_test_split(full_df, train_size=pretext_percentage, random_state=random_state)
@@ -347,7 +566,6 @@ def split_dataset(
     return pretext_train_df, pretext_val_df, downstream_train_df, downstream_val_df, downstream_test_df
 
 
-# Function to split the full dataset
 def split_full_dataset(
     people_dataset_meta_path: str,
     files_dataset_meta_path: str,
@@ -356,21 +574,47 @@ def split_full_dataset(
     down_train_percentage: float,
     down_val_percentage: float,
     down_test_percentage: float,
-    random_state: int
+    random_state: int,
 ) -> None:
-    print(f"Splitting dataset {people_dataset_meta_path}...") 
+    """
+    Split the full dataset in pretext (training, validation) and downstream (training, validation, test) sets.
+
+    Parameters
+    ----------
+    people_dataset_meta_path : str
+        The path to the dataset's people metadata CSV file.
+    files_dataset_meta_path : str
+        The path to the dataset's files metadata CSV file.
+    pre_train_percentage : float
+        The percentage of the dataset to use for pretext training.
+    pre_val_percentage : float
+        The percentage of the dataset to use for pretext validation.
+    down_train_percentage : float
+        The percentage of the dataset to use for downstream training.
+    down_val_percentage : float
+        The percentage of the dataset to use for downstream validation.
+    down_test_percentage : float
+        The percentage of the dataset to use for downstream testing.
+    random_state : int
+        The random seed to use for the split.
+
+    Returns
+    -------
+    None
+    """
+    print(f"Splitting dataset {people_dataset_meta_path}...")
 
     if(pre_train_percentage + pre_val_percentage + down_train_percentage + down_val_percentage + down_test_percentage != 1):
         raise Exception("Sum of pretain train and val and downstream train, val and test percentages must be equal to 1")
 
     # Full dataset
     full_df     = pd.read_csv(people_dataset_meta_path, keep_default_na=False)
-    spoofed_df  = full_df.loc[full_df['spoof_count'] > 0]
-    no_spoof_df = full_df.loc[full_df['spoof_count'] == 0]  # people with no spoof audios are separated for the downstream test
+    spoofed_df  = full_df.loc[full_df["spoof_count"] > 0]
+    no_spoof_df = full_df.loc[full_df["spoof_count"] == 0]  # people with no spoof audios are separated for the downstream test
 
     # Split full dataset in male and female to make sure training datasets are balanced
-    male_df   = spoofed_df.loc[spoofed_df['gender'] == 'M']
-    female_df = spoofed_df.loc[spoofed_df['gender'] == 'F']
+    male_df   = spoofed_df.loc[spoofed_df["gender"] == "M"]
+    female_df = spoofed_df.loc[spoofed_df["gender"] == "F"]
 
     # Split male and female datasets in pretext train, pretext val, downstream train, downstream val and downstream test
     male_split   = split_dataset(male_df, pre_train_percentage, pre_val_percentage, down_train_percentage, down_val_percentage, down_test_percentage, random_state)
@@ -385,22 +629,24 @@ def split_full_dataset(
 
     # Split files dataset based on people dataset
     files_full_df             = pd.read_csv(files_dataset_meta_path, keep_default_na=False)
-    files_pretext_train_df    = files_full_df.loc[files_full_df['id'].isin(people_pretext_train_df['id'])]
-    files_pretext_val_df      = files_full_df.loc[files_full_df['id'].isin(people_pretext_val_df['id'])]
-    files_downstream_train_df = files_full_df.loc[files_full_df['id'].isin(people_downstream_train_df['id'])]
-    files_downstream_val_df   = files_full_df.loc[files_full_df['id'].isin(people_downstream_val_df['id'])]
-    files_downstream_test_df  = files_full_df.loc[files_full_df['id'].isin(people_downstream_test_df['id'])]
+    files_pretext_train_df    = files_full_df.loc[files_full_df["id"].isin(people_pretext_train_df["id"])]
+    files_pretext_val_df      = files_full_df.loc[files_full_df["id"].isin(people_pretext_val_df["id"])]
+    files_downstream_train_df = files_full_df.loc[files_full_df["id"].isin(people_downstream_train_df["id"])]
+    files_downstream_val_df   = files_full_df.loc[files_full_df["id"].isin(people_downstream_val_df["id"])]
+    files_downstream_test_df  = files_full_df.loc[files_full_df["id"].isin(people_downstream_test_df["id"])]
 
     # Save pretext and downstream datasets
-    dataset_folder               = os.path.join(os.path.dirname(people_dataset_meta_path), "splits")
-    dataset_folder_by_people     = os.path.join(dataset_folder, "by_people")
-    dataset_folder_by_file       = os.path.join(dataset_folder, "by_file")
-    if not os.path.exists(dataset_folder_by_people): os.makedirs(dataset_folder_by_people)
-    if not os.path.exists(dataset_folder_by_file): os.makedirs(dataset_folder_by_file)
+    dataset_folder            = os.path.join(os.path.dirname(people_dataset_meta_path), "splits")
+    dataset_folder_by_people  = os.path.join(dataset_folder, "by_people")
+    dataset_folder_by_file    = os.path.join(dataset_folder, "by_file")
+    if not os.path.exists(dataset_folder_by_people):
+        os.makedirs(dataset_folder_by_people)
+    if not os.path.exists(dataset_folder_by_file):
+        os.makedirs(dataset_folder_by_file)
 
     people_pretext_train_path    = os.path.join(dataset_folder_by_people, "people-pretext_train.csv")
     people_pretext_val_path      = os.path.join(dataset_folder_by_people, "people-pretext_val.csv")
-    people_downstream_train_path = os.path.join(dataset_folder_by_people,"people-downstream_train.csv")
+    people_downstream_train_path = os.path.join(dataset_folder_by_people, "people-downstream_train.csv")
     people_downstream_val_path   = os.path.join(dataset_folder_by_people, "people-downstream_val.csv")
     people_downstream_test_path  = os.path.join(dataset_folder_by_people, "people-downstream_test.csv")
 
@@ -409,7 +655,7 @@ def split_full_dataset(
     files_downstream_train_path  = os.path.join(dataset_folder_by_file, "files-downstream_train.csv")
     files_downstream_val_path    = os.path.join(dataset_folder_by_file, "files-downstream_val.csv")
     files_downstream_test_path   = os.path.join(dataset_folder_by_file, "files-downstream_test.csv")
-   
+
     print(f"Saving split datasets in {dataset_folder}/...")
     people_pretext_train_df.to_csv(people_pretext_train_path, index=False)
     people_pretext_val_df.to_csv(people_pretext_val_path, index=False)
@@ -424,79 +670,3 @@ def split_full_dataset(
     files_downstream_test_df.to_csv(files_downstream_test_path, index=False)
 
     print("Done!")
-
-# ----------------------------------------------------------------
-
-def display_info_dataset(dataset_path):
-    print("Dataset info ------")
-    # Read dataset
-    dataset_df = pd.read_csv(dataset_path, keep_default_na=False)
-    print(dataset_df)
-
-# ----------------------------------------------------------------
-# Dataset constructor and heads loading functions
-
-# Custom dataset for loading voice embeddings and their labels.
-class VoiceEmbeddingsDataset(Dataset):
-    def __init__(self, embeddings_folder_path: str, gender: str):
-        self.data = []
-
-        # Load fake voices (label 0)
-        fake_path = os.path.join(embeddings_folder_path, "fake_voices")
-        self._load_data(fake_path, label=0, gender=gender) 
-
-        # Load real voices (label 1)
-        real_path = os.path.join(embeddings_folder_path, "real_voices")
-        self._load_data(real_path, label=1, gender=gender)
-
-    def _load_data(self, folder_path: str, label: int, gender: str):
-        for person_folder in os.listdir(folder_path):
-            person_path = os.path.join(folder_path, person_folder)
-
-            if not os.path.isdir(person_path) or (gender != "" and person_folder.split("_")[1][0] != gender):
-                continue  # Skip non-directory files
-
-            for file in os.listdir(person_path):
-                if file.endswith(".pt"):  # Process only .pt files
-                    embedding_path = os.path.join(person_path, file)
-                    self.data.append((embedding_path, label))
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
-        embedding_path, label = self.data[idx]
-        embedding = torch.load(embedding_path, weights_only=False)
-        embedding_mean = embedding.mean(dim=1).squeeze()
-
-        return embedding_mean, label  # Squeeze to remove batch dimension
-
-# DataLoader creation function
-def load_embeddings(
-    embeddings_folder_path: str, 
-    gender: str = "",
-    batch_size: int = 32, 
-    shuffle: bool = True, 
-    num_workers: int = 8
-) -> List[List[torch.Tensor]]:
-    """
-    Create a DataLoader for the voice embeddings dataset.
-    
-    Args:
-        embeddings_folder_path (str): Path to the folder containing embeddings.
-        batch_size (int): Number of samples per batch.
-        shuffle (bool): Whether to shuffle the data.
-        num_workers (int): Number of subprocesses to use for data loading.
-
-    Returns:
-        list: List of lists containing embeddings and labels.
-    """
-    print(f"Loading dataset from {embeddings_folder_path}...")
-    dataset = VoiceEmbeddingsDataset(embeddings_folder_path, gender)
-    dataloader = DataLoader(
-        dataset, 
-        batch_size=batch_size, 
-        shuffle=shuffle, 
-        num_workers=num_workers, 
-    )
-    return list(tqdm(dataloader, desc="Loading embeddings"))

@@ -3,9 +3,9 @@ import json
 import os
 from fabric import task
 
-from src.utils.dataset import add_duration_dataset, add_amplitude_dataset, display_info_dataset, generate_dataset_files_meta, generate_dataset_people_meta, normalize_dataset, split_full_dataset, add_noise_dataset, load_embeddings
+from src.utils.dataset import add_duration_dataset, add_amplitude_dataset, generate_dataset_files_meta, generate_dataset_people_meta, normalize_dataset, split_full_dataset, add_noise_dataset, load_embeddings
 
-from src.utils.embeddings import generate_embeddings_wav2vec, generate_embeddings_wav2vec2_bert, generate_embeddings_hubert
+from src.utils.embeddings import generate_embeddings_wav2vec, generate_embeddings_hubert
 
 from src.train.mlp.train_mlp import train_mlp 
 from src.train.mlp.test_mlp import test_mlp 
@@ -100,11 +100,11 @@ def SplitDataset(c):
 
 #------------------------------------------------------------------------------
 
-@task
-def DisplayDatasetInfo(c):
-    """Displays information about the dataset.""" 
-    dataset_path = "datasets/release/files-metadata.csv" 
-    display_info_dataset(dataset_path)
+# @task
+# def DisplayDatasetInfo(c):
+#     """Displays information about the dataset.""" 
+#     dataset_path = "datasets/release/files-metadata.csv" 
+#     display_info_dataset(dataset_path)
 
 #----------------------------------------------------------------------------
 
@@ -137,36 +137,7 @@ def GenerateEmbeddingsWav2vec2(c):
 
     generate_embeddings_wav2vec(dataset_folder_path, dataset_meta_path, sample_rate, model_id, embeddings_path)
 
-@task
-def GenerateEmbeddingsWav2vec2BERT(c):
-    """Generates embeddings for the dataset using Wav2vec."""
 
-    # Dataset
-    dataset_folder_path = "datasets/release"
-    dataset_meta_path   = [
-        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_train.csv"),
-        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_val.csv"),
-        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_test.csv")    
-    ]
-    sample_rate         = 16000
-
-    # Which model to use:
-    model_id = "facebook/wav2vec2-base"
-
-    # Embeddings output folder
-    if isinstance(dataset_meta_path, str):
-        split_name = os.path.basename(dataset_meta_path).split(".")[0] 
-        embeddings_path = os.path.join("embeddings", model_id.replace("/", "-"), split_name)
-        os.makedirs(embeddings_path, exist_ok=True)
-    elif isinstance(dataset_meta_path, list):
-        split_name = [os.path.basename(path).split(".")[0] for path in dataset_meta_path]
-        embeddings_path = [os.path.join("embeddings", model_id.replace("/", "-"), name) for name in split_name]
-        for path in embeddings_path:
-            os.makedirs(path, exist_ok=True)
-
-    generate_embeddings_wav2vec2_bert(dataset_folder_path, dataset_meta_path, sample_rate, model_id, embeddings_path)
-
-    
 @task
 def GenerateEmbeddingsHubert(c):
     """Generates embeddings for the dataset using HuBERT."""
