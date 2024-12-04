@@ -7,21 +7,30 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from sklearn.model_selection import train_test_split
-from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader, TensorDataset
 
 from src.train.mlp.mlp_model import MLP
-from src.utils.dataset import load_embeddings
 from src.utils.train import compute_eer
 
-#----------------------------------------------------------------
+# ----------------------------------------------------------------
 # TRAINING FUNCTION
 
-def set_random_seeds(seed: int):
+def set_random_seeds(seed: int) -> None:
+    """
+    Set random seeds for reproducibility.
+
+    Parameters
+    ----------
+    seed : int
+        The seed value to set.
+
+    Returns
+    -------
+        None
+    """
     torch.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)  # If using CUDA
     np.random.seed(seed)
+
 
 def train_mlp(
     train_loader: list,
@@ -33,6 +42,42 @@ def train_mlp(
     randomness_seed: int,
     device: str,
 ) -> float:
+    """
+    Train a MLP model.
+
+    Parameters
+    ----------
+    train_loader : list
+        A list of tuples containing the training inputs and targets.
+    val_loader : list
+        A list of tuples containing the validation inputs and targets.
+    train_embeddings_folder_path : str
+        The path to the folder containing the training embeddings.
+    val_embeddings_folder_path : str
+        The path to the folder containing the validation embeddings.
+    hyperparameters : dict
+        A dictionary containing the hyperparameters for training:
+        - *epochs* (int): Number of training epochs.
+        - *batch_size* (int): Batch size for training.
+        - *learning_rate* (float): Learning rate for the optimizer.
+        - *patience* (int): Patience for early stopping.
+        - *dropout* (float): Dropout rate for regularization.
+        - *weight_decay* (float): Weight decay for regularization.
+        - *hidden_dim_1* (int): Dimensionality of the first hidden layer.
+        - *output_dim* (int): Number of output classes.
+    output_path : str
+        The path to the folder where the model will be saved.
+    randomness_seed : int
+        The seed value for reproducibility.
+    device : str
+        The device to use for training (e.g., "cpu" or "cuda").
+
+    Returns
+    -------
+    float
+        The best validation EER.
+    """
+
     print("Starting training...")
     # Set random seed for reproducibility
     set_random_seeds(randomness_seed)
@@ -45,7 +90,6 @@ def train_mlp(
 
     # Extract hyperparameters
     epochs = hyperparameters["epochs"]
-    batch_size = hyperparameters["batch_size"]
     learning_rate = hyperparameters["learning_rate"]
     patience = hyperparameters["patience"]
     hidden_dim_1 = hyperparameters["hidden_dim_1"]
@@ -80,7 +124,7 @@ def train_mlp(
             inputs, targets = inputs.to(device), targets.to(device).float()
             optimizer.zero_grad()
             outputs = model(inputs).squeeze()
-            loss = loss_func(outputs, targets)            
+            loss = loss_func(outputs, targets)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
@@ -117,7 +161,7 @@ def train_mlp(
         val_accuracies.append(epoch_val_accuracy)
 
         # Compute EER
-        eer, eer_threshold = compute_eer(np.array(all_targets), np.array(all_scores))
+        eer, _ = compute_eer(np.array(all_targets), np.array(all_scores))
         val_eers.append(eer)
 
         if eer < best_val_eer:
@@ -129,7 +173,7 @@ def train_mlp(
         # Log progress
         epoch_log = f"Epoch {epoch + 1}/{epochs}"
         train_log = f"Train Loss: {epoch_train_loss:.4f}"
-        val_log = f"Validation Loss: {epoch_val_loss:.4f}, Accuracy: {epoch_val_accuracy:.4f}"
+        val_log = f"Validation Loss: {epoch_val_loss:.4f}, Accuracy: {epoch_val_accuracy:.4f}, EER: {eer:.4f}"
         lr_log = f"Learning Rate: {optimizer.param_groups[0]['lr']:.6e}"
         print(f"{epoch_log} | {train_log} | {val_log} | {lr_log}")
 
@@ -174,18 +218,22 @@ def train_mlp(
     plt.legend(fontsize=12)
     plt.grid(True)
     plt.savefig(os.path.join(run_folder, "loss_plot.png"))
-    # plt.show()
 
     # Plot accuracy curve
     plt.figure(figsize=(10, 6))
-    plt.plot(range(1, len(val_accuracies) + 1), val_accuracies, label="Validation Accuracy", marker="o", color="green")
+    plt.plot(
+        range(1, len(val_accuracies) + 1),
+        val_accuracies,
+        label="Validation Accuracy",
+        marker="o",
+        color="green",
+    )
     plt.title("Validation Accuracy", fontsize=16)
     plt.xlabel("Epochs", fontsize=16)
     plt.ylabel("Accuracy", fontsize=16)
     plt.legend(fontsize=12)
     plt.grid(True)
     plt.savefig(os.path.join(run_folder, "accuracy_plot.png"))
-    # plt.show()
     
     print(f"Training completed. Logs, models, and hyperparameters saved in {run_folder}.")
 
