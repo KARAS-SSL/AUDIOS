@@ -60,3 +60,13 @@ Open **Git Bash**, navigate to the directory containing the script, and run:
 ```bash
 ./prepare_dataset.sh
 ```
+
+## About the Dataset
+
+
+The bona-fide audios come from the CETUC Corpus, made available by Federal University of Pará's [Fala Brasil Group](https://gitlab.com/fb-audio-corpora). The spoof audios were created by Éric Carvalho Figueira and Marcos Godinho Filho using the XTTS text-to-audio model, fed with the CETUC Corpus to generate fake audios mimicking the same individuals and speech content [Fake Voices](https://huggingface.co/datasets/unfake/fake_voices).
+
+The CETUC Corpus consists of 1,000 samples from 101 speakers (51 women and 50 men), totaling almost 145 hours of bona-fide examples. Of these, only 91 speakers (48 women and 43 men) were mimicked by Figueira and Filho, and only 28 had all 1,000 sentences generated. This results in an imbalance in the dataset, with approximately 145 hours of bona-fide examples and 101 hours of spoof audio. Within each class, however, there is no significant duration imbalance between genders.
+
+
+

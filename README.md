@@ -11,7 +11,13 @@ The pipeline automates the steps needed to prepare and train models for downstre
 
 ---
 
-## How to Run the Fabfile
+## How to get the Dataset ?
+
+In order know more about the dataset and download it, please follow the instructions in the [Dataset Preparation](DatasetPreparation.md).
+
+---
+
+## How to Run the Fabfile ?
 
 The `fabfile` contains tasks that automate the pipeline using **Fabric**, a Python library for task automation. Below is a step-by-step guide to using it:
 
