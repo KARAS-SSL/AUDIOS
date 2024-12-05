@@ -1,78 +1,98 @@
-
 import json
 import os
-from fabric import task
-
-from src.utils.dataset import add_duration_dataset, add_amplitude_dataset, generate_dataset_files_meta, generate_dataset_people_meta, normalize_dataset, split_full_dataset, add_noise_dataset, load_embeddings
-
-from src.utils.embeddings import generate_embeddings_wav2vec, generate_embeddings_hubert
-
-from src.models.mlp.train_mlp import train_mlp 
-from src.models.mlp.test_mlp import test_mlp 
-
-from src.models.svm.train_svm import train_svm
-from src.models.svm.test_svm import test_svm
-
-from src.models.random_florest.train_rf import train_rf
-from src.models.random_florest.test_rf import test_rf
-
-from src.visualize.umap import visualize_embeddings_umap
-from src.visualize.tsne import visualize_embeddings_tsne
 
 import optuna
 import torch
-import numpy as np
+from fabric import task
+
+from src.models.mlp.test_mlp import test_mlp
+from src.models.mlp.train_mlp import train_mlp
+from src.models.random_florest.test_rf import test_rf
+from src.models.random_florest.train_rf import train_rf
+from src.models.svm.test_svm import test_svm
+from src.models.svm.train_svm import train_svm
+from src.utils.dataset import (
+    add_amplitude_dataset,
+    add_duration_dataset,
+    add_noise_dataset,
+    generate_dataset_files_meta,
+    generate_dataset_people_meta,
+    normalize_dataset,
+    split_full_dataset,
+)
+from src.utils.embeddings import (
+    generate_embeddings_hubert,
+    generate_embeddings_wav2vec,
+    load_embeddings,
+)
+from src.utils.models import objective_mlp, objective_rf, objective_svm
+from src.visualize.tsne import visualize_embeddings_tsne
+from src.visualize.umap import visualize_embeddings_umap
 
 # Set the seed value all over the place to make this reproducible
 randomness_seed = 7
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-#------------------------------------------------------------------------------
+# ------------------------------------------------------------------------------
+# METADATA CSV TASKS
+# ------------------------------------------------------------------------------
+
 
 @task
 def GenerateDatasetCSV(c):
-    """Generates the dataset metadata .csv files."""
-    
-    dataset_path = "datasets/release/"
+    """Generate the dataset metadata .csv files."""
+
+    dataset_path = os.path.join("datasets", "release")
     generate_dataset_people_meta(dataset_path)
     generate_dataset_files_meta(dataset_path)
 
+
 @task
 def AddDatasetDuration(c):
-    """Adds duration information to the dataset."""
-    
-    dataset_path     = "datasets/release/files-metadata.csv"
-    new_dataset_path = "datasets/release/files-metadata_duration.csv" 
+    """Add duration information to the dataset metadata .csv file."""
+
+    dataset_path = os.path.join("datasets", "release", "files-metadata.csv")
+    new_dataset_path = os.path.join("datasets", "release", "files-metadata_duration.csv")
     add_duration_dataset(dataset_path, new_dataset_path)
+
 
 @task
 def AddDatasetAmplitude(c):
-    """Adds amplitude information to the dataset."""
-    
-    dataset_path     = "datasets/release/files-metadata_duration.csv"
-    new_dataset_path = "datasets/release/files-metadata_duration_amplitude.csv" 
+    """Add amplitude information to the dataset metadata .csv file."""
+
+    dataset_path = os.path.join("datasets", "release", "files-metadata_duration.csv")
+    new_dataset_path = os.path.join("datasets", "release", "files-metadata_amplitude.csv")
     add_amplitude_dataset(dataset_path, new_dataset_path)
 
+
+# ------------------------------------------------------------------------------
+# DATA PREPROCESSING TASKS
+# ------------------------------------------------------------------------------
+
+
 @task
-def NormalizeDataset(c, use_same_dir=False):
-    """Normalizes the audio amplitudes of the dataset."""
+def NormalizeDataset(c):
+    """Normalize the audios' amplitudes of the dataset."""
     
-    dataset_path     = "datasets/release/files-metadata.csv"
-    new_dataset_path = "datasets/release/" if use_same_dir else "datasets/normalized/"
+    dataset_path = os.path.join("datasets", "release", "files-metadata.csv")
+    new_dataset_path = os.path.join("datasets", "release")
     normalize_dataset(dataset_path, new_dataset_path)
 
+
 @task
-def AddNoise(c, use_same_dir=False):
-    dataset_path     = "datasets/release/files-metadata.csv" 
-    new_dataset_path = "datasets/release/"
+def AddNoise(c):
+    """Add noise to the audios of the dataset."""
+    dataset_path = os.path.join("datasets", "release", "files-metadata.csv")
+    new_dataset_path = os.path.join("datasets", "release")
     add_noise_dataset(dataset_path, new_dataset_path)
-    
+
+
 @task
 def SplitDataset(c):
-    """Splits the dataset into pretext (training and validation) and downstream (training, validation and test) sets."""
+    """Split the dataset into pretext (training and validation) and downstream (training, validation and test) sets."""
 
-    people_dataset_path = "datasets/release/people-metadata.csv"
-    files_dataset_path  = "datasets/release/files-metadata.csv"
+    people_dataset_path = os.path.join("datasets", "release", "people-metadata.csv")
+    files_dataset_path  = os.path.join("datasets", "release", "files-metadata.csv")
 
     # Full dataset: 60% pretrain, 40% downstream
     pretext_percentage    = 0.6
@@ -95,43 +115,42 @@ def SplitDataset(c):
         downstream_train_percentage,
         downstream_val_percentage,
         downstream_test_percentage,
-        randomness_seed
+        randomness_seed,
     )
 
-#------------------------------------------------------------------------------
 
-# @task
-# def DisplayDatasetInfo(c):
-#     """Displays information about the dataset.""" 
-#     dataset_path = "datasets/release/files-metadata.csv" 
-#     display_info_dataset(dataset_path)
+# ------------------------------------------------------------------------------
+# EMBEDDINGS TASKS
+# ------------------------------------------------------------------------------
 
-#----------------------------------------------------------------------------
 
 @task
 def GenerateEmbeddingsWav2vec2(c):
-    """Generates embeddings for the dataset using Wav2vec."""
+    """Generate embeddings for the dataset using Wav2Vec2.0."""
 
     # Dataset
-    dataset_folder_path = "datasets/release"
-    dataset_meta_path   = [
-        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_train.csv"),
-        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_val.csv"),
-        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_test.csv")    
+    dataset_folder_path = os.path.join("datasets", "release")
+    dataset_meta_path = [
+        os.path.join(dataset_folder_path, "splits", "by_file", "files-downstream_train.csv"),
+        os.path.join(dataset_folder_path, "splits", "by_file", "files-downstream_val.csv"),
+        os.path.join(dataset_folder_path, "splits", "by_file", "files-downstream_test.csv"),
     ]
-    sample_rate         = 16000
+    sample_rate = 16000
 
     # Which model to use:
     model_id = "facebook/wav2vec2-base"
 
     # Embeddings output folder
     if isinstance(dataset_meta_path, str):
-        split_name = os.path.basename(dataset_meta_path).split(".")[0] 
+        split_name = os.path.basename(dataset_meta_path).split(".")[0]
         embeddings_path = os.path.join("embeddings", model_id.replace("/", "-"), split_name)
         os.makedirs(embeddings_path, exist_ok=True)
     elif isinstance(dataset_meta_path, list):
-        split_name = [os.path.basename(path).split(".")[0] for path in dataset_meta_path]
-        embeddings_path = [os.path.join("embeddings", model_id.replace("/", "-"), name) for name in split_name]
+        split_name = [os.path.basename(path).split(".")[0] for path in dataset_meta_path ]
+        embeddings_path = [
+            os.path.join("embeddings", model_id.replace("/", "-"), name)
+            for name in split_name
+        ]
         for path in embeddings_path:
             os.makedirs(path, exist_ok=True)
 
@@ -143,194 +162,212 @@ def GenerateEmbeddingsHubert(c):
     """Generates embeddings for the dataset using HuBERT."""
 
     # Dataset
-    dataset_folder_path = "datasets/release"
-    dataset_meta_path   = [
-        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_train.csv"),
-        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_val.csv"),
-        os.path.join(dataset_folder_path, "splits", "by_file" ,"files-downstream_test.csv")    
-    ] 
-    sample_rate         = 16000
+    dataset_folder_path = os.path.join("datasets", "release")
+    dataset_meta_path = [
+        os.path.join(dataset_folder_path, "splits", "by_file", "files-downstream_train.csv"),
+        os.path.join(dataset_folder_path, "splits", "by_file", "files-downstream_val.csv"),
+        os.path.join(dataset_folder_path, "splits", "by_file", "files-downstream_test.csv"),
+    ]
+    sample_rate = 16000
 
     # Which model to use:
     model_id = "facebook/hubert-large-ls960-ft"
 
     # Embeddings output folder
     if isinstance(dataset_meta_path, str):
-        split_name = os.path.basename(dataset_meta_path).split(".")[0] 
+        split_name = os.path.basename(dataset_meta_path).split(".")[0]
         embeddings_path = os.path.join("embeddings", model_id.replace("/", "-"), split_name)
         os.makedirs(embeddings_path, exist_ok=True)
     elif isinstance(dataset_meta_path, list):
-        split_name = [os.path.basename(path).split(".")[0] for path in dataset_meta_path]
-        embeddings_path = [os.path.join("embeddings", model_id.replace("/", "-"), name) for name in split_name]
+        split_name = [os.path.basename(path).split(".")[0] for path in dataset_meta_path ]
+        embeddings_path = [
+            os.path.join("embeddings", model_id.replace("/", "-"), name)
+            for name in split_name
+        ]
         for path in embeddings_path:
             os.makedirs(path, exist_ok=True)
 
     generate_embeddings_hubert(dataset_folder_path, dataset_meta_path, sample_rate, model_id, embeddings_path)
 
-#----------------------------------------------------------------------------
-# Visualize Embeddings
 
 @task
-def VisualizeEmbeddingsUMAP(c):
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train/"
+def VisualizeEmbeddingsUMAP(c, backbone: str):
+    """
+    Visualize embeddings using UMAP. Run `fab -h VisualizeEmbeddingsUMAP` to see the list of arguments.
+
+    Args
+    ----
+    backbone: str
+        The backbone used to generate the embeddings. Available options: `wav2vec2`, `hubert`.
+
+    Raises
+    ------
+    ValueError
+        If the backbone is invalid.
+    """
+    if backbone not in ["wav2vec2", "hubert"]:
+        raise ValueError(f"Invalid backbone: {backbone}")
+
+    if backbone == "wav2vec2":
+        backbone_folder = "facebook-wav2vec2-base"
+    elif backbone == "hubert":
+        backbone_folder = "facebook-hubert-large-ls960-ft"
+
+    train_embeddings_folder_path = os.path.join("embeddings", backbone_folder, "files-downstream_train")
     loader = load_embeddings(train_embeddings_folder_path)
-    visualize_embeddings_umap(loader) 
+    visualize_embeddings_umap(train_embeddings_folder_path, loader, randomness_seed)
+
 
 @task
-def VisualizeEmbeddingsTSNE(c):
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train/" 
-    loader = load_embeddings(train_embeddings_folder_path)
-    visualize_embeddings_tsne(loader) 
+def VisualizeEmbeddingsTSNE(c, backbone: str):
+    """
+    Visualize embeddings using t-SNE. Run `fab -h VisualizeEmbeddingsTSNE` to see the list of arguments.
 
-@task 
-def VisualizeEmbeddings(c):
-    train_embeddings_folder_path = "embeddings/facebook-hubert-large-ls960-ft/files-downstream_train/"
+    Args
+    ----
+    backbone: str
+        The backbone used to generate the embeddings. Available options: `wav2vec2`, `hubert`.
+
+    Raises
+    ------
+    ValueError
+        If the backbone is invalid.
+    """
+    if backbone not in ["wav2vec2", "hubert"]:
+        raise ValueError(f"Invalid backbone: {backbone}")
+
+    if backbone == "wav2vec2":
+        backbone_folder = "facebook-wav2vec2-base"
+    elif backbone == "hubert":
+        backbone_folder = "facebook-hubert-large-ls960-ft"
+
+    train_embeddings_folder_path = os.path.join("embeddings", backbone_folder, "files-downstream_train")
     loader = load_embeddings(train_embeddings_folder_path)
-    visualize_embeddings_umap(loader)
-    visualize_embeddings_tsne(loader)
+    visualize_embeddings_tsne(train_embeddings_folder_path, loader, randomness_seed)
+
+
+@task
+def VisualizeEmbeddings(c, backbone: str):
+    """
+    Visualize embeddings using UMAP and t-SNE. Run `fab -h VisualizeEmbeddings` to see the list of arguments.
+
+    Args
+    ----
+    backbone: str
+        The backbone used to generate the embeddings. Available options: `wav2vec2`, `hubert`.
+
+    Raises
+    ------
+    ValueError
+        If the backbone is invalid.
+    """
+    if backbone not in ["wav2vec2", "hubert"]:
+        raise ValueError(f"Invalid backbone: {backbone}")
+
+    if backbone == "wav2vec2":
+        backbone_folder = "facebook-wav2vec2-base"
+    elif backbone == "hubert":
+        backbone_folder = "facebook-hubert-large-ls960-ft"
+
+    train_embeddings_folder_path = os.path.join("embeddings", backbone_folder, "files-downstream_train")
+    loader = load_embeddings(train_embeddings_folder_path)
+    visualize_embeddings_umap(train_embeddings_folder_path, loader, randomness_seed)
+    visualize_embeddings_tsne(train_embeddings_folder_path, loader, randomness_seed)
+
+
+# ----------------------------------------------------------------------------
+# MODEL TRAINING TASKS
+# ----------------------------------------------------------------------------
+
+
+@task
+def OptimizeHyperparameters(c, backbone: str, classifier: str):
+    """
+    Execute a study to optimize the hyperparameters for the given classifier and embeddings. Run `fab -h OptimizeHyperparameters` to see the list of arguments.
     
-#----------------------------------------------------------------------------
-# Train Model
-
-def objective_mlp(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, output_path):
-    # Define the hyperparameter search space
-    hyperparameters = {
-        "epochs": 50,
-        "patience": 8,
-        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
-        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 1e-3, log=True),
-        "dropout": trial.suggest_float("dropout", 0.2, 0.5),
-        "weight_decay": trial.suggest_float("weight_decay", 1e-8, 1e1, log=True),
-        "hidden_dim_1": trial.suggest_categorical("hidden_dim_1", [128, 256, 512]),
-        "output_dim": 1,
-        "randomness_seed": randomness_seed
-    }
-
-    # Paths to embeddings   
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
-    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
+    Args
+    ----
+    backbone: str
+        The backbone used to generate the embeddings. Available options: `wav2vec2`, `hubert`.
+    classifier: str
+        The classifier to use for training. Available options: `mlp`, `svm`, `rf`.
     
-    # Call the training function
-    validation_eer = train_mlp(
-        train_embeddings_loader, 
-        val_embeddings_loader,
-        train_embeddings_folder_path, 
-        val_embeddings_folder_path, 
-        hyperparameters, 
-        output_path, 
-        randomness_seed, 
-        device
-    )
+    Raises
+    ------
+    ValueError
+        If the backbone or classifier is invalid.
+    """
+    if backbone not in ["wav2vec2", "hubert"]:
+        raise ValueError(f"Invalid backbone: {backbone}")
+    if classifier not in ["mlp", "svm", "rf"]:
+        raise ValueError(f"Invalid prediction head: {classifier}")
 
-    # Return the validation EER as the objective metric
-    return validation_eer
-
-
-def objective_svm(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, output_path):
-    # Define the hyperparameter search space
-    hyperparameters = {
-        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
-        "C": trial.suggest_float("C", 0.1, 10.0),
-        "kernel": "rbf",
-        "gamma": trial.suggest_categorical("gamma", ["scale", "auto"]),
-        "randomness_seed": randomness_seed
-
-    }
-
-    # Paths to embeddings
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
-    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
-
- 
-    # Call the training function
-    validation_eer = train_svm(
-        train_embeddings_loader, 
-        val_embeddings_loader,
-        train_embeddings_folder_path, 
-        val_embeddings_folder_path, 
-        hyperparameters, 
-        output_path, 
-        randomness_seed
-    )
-
-    # Return the validation EER as the objective metric
-    return validation_eer
-
-
-def objective_rf(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, output_path):
-    # Define the hyperparameter search space
-    hyperparameters = {
-        "batch_size": trial.suggest_categorical("batch_size", [16, 32, 64, 128, 256]),
-        "n_estimators": trial.suggest_int("n_estimators", 10, 1000),
-        "max_depth": trial.suggest_int("max_depth", 1, 20),
-        "min_samples_split": trial.suggest_int("min_samples_split", 2, 10),
-        "min_samples_leaf": trial.suggest_int("min_samples_leaf", 1, 10),
-        "randomness_seed": randomness_seed
-
-    }
-
-    # Paths to embeddings
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
-    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
- 
-    # Call the training function
-    validation_eer = train_rf(
-        train_embeddings_loader, 
-        val_embeddings_loader,
-        train_embeddings_folder_path, 
-        val_embeddings_folder_path, 
-        hyperparameters, 
-        output_path, 
-        randomness_seed
-    )
-
-    # Return the validation EER as the objective metric
-    return validation_eer
-
-
-@task
-def OptimizeHyperparameters(c, prediction_head: str):
-
-    if prediction_head != "mlp" and prediction_head != "svm" and prediction_head != "rf":
-        raise ValueError(f"Invalid prediction head: {prediction_head}")
+    # Define the model folder
+    if backbone == "wav2vec2":
+        backbone_folder = "facebook-wav2vec2-base"
+    elif backbone == "hubert":
+        backbone_folder = "facebook-hubert-large-ls960-ft"
 
     # Load embeddings
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
-    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
+    train_embeddings_folder_path = os.path.join("embeddings", backbone_folder, "files-downstream_train")
+    val_embeddings_folder_path   = os.path.join("embeddings", backbone_folder, "files-downstream_val")
     train_embeddings_loader = load_embeddings(train_embeddings_folder_path)
     val_embeddings_loader   = load_embeddings(val_embeddings_folder_path)
 
     # Create output folder for the study runs
     output_path = "runs"
     os.makedirs(output_path, exist_ok=True)
-    study_number = len([f for f in os.listdir(output_path) if f.startswith(f"{prediction_head}_study")])
-    study_folder = os.path.join(output_path, f"{prediction_head}_study{study_number}")
+    study_number = len(
+        [f for f in os.listdir(output_path) if f.startswith(f"{classifier}_study")]
+    )
+    study_folder = os.path.join(output_path, f"{classifier}_study{study_number}")
     os.makedirs(study_folder, exist_ok=True)
 
     # Optimize the hyperparameters
     study = optuna.create_study(direction="minimize")
-    if prediction_head == "mlp":
+    if classifier == "mlp":
         study.optimize(
-            lambda trial: objective_mlp(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, study_folder),
-            n_trials=100
+            lambda trial: objective_mlp(
+                trial,
+                train_embeddings_loader,
+                val_embeddings_loader,
+                train_embeddings_folder_path,
+                val_embeddings_folder_path,
+                study_folder,
+            ),
+            n_trials=100,
         )
-    elif prediction_head == "svm":
+    elif classifier == "svm":
         study.optimize(
-            lambda trial: objective_svm(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, study_folder),
-            n_trials=30
+            lambda trial: objective_svm(
+                trial,
+                train_embeddings_loader,
+                val_embeddings_loader,
+                train_embeddings_folder_path,
+                val_embeddings_folder_path,
+                study_folder,
+            ),
+            n_trials=30,
         )
-    elif prediction_head == "rf":
+    elif classifier == "rf":
         study.optimize(
-            lambda trial: objective_rf(trial, train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, study_folder),
-            n_trials=30
+            lambda trial: objective_rf(
+                trial,
+                train_embeddings_loader,
+                val_embeddings_loader,
+                train_embeddings_folder_path,
+                val_embeddings_folder_path,
+                study_folder,
+            ),
+            n_trials=30,
         )
 
     # Save the best hyperparameters to a file
     best_run_path = os.path.join(study_folder, "best_hyperparameters.json")
-    best_run      = {
+    best_run = {
         "best_trial_number": study.best_trial.number,
         "best_validation_eer": study.best_value,
-        "best_hyperparameters": study.best_params
+        "best_hyperparameters": study.best_params,
     }
     with open(best_run_path, "w") as f:
         json.dump(best_run, f, indent=4)
@@ -339,16 +376,42 @@ def OptimizeHyperparameters(c, prediction_head: str):
 
 
 @task
-def TrainModel(c): 
-    train_embeddings_folder_path = "embeddings/facebook-wav2vec2-base/files-downstream_train"
-    val_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_val"
+def TrainModel(c, backbone: str, classifier: str):
+    """
+    Train a classifier using the embeddings from the given backbone and predefined hyperparameters. Run `fab -h TrainModel` to see the list of arguments.
+    
+    Args
+    ----
+    backbone: str
+        The backbone used to generate the embeddings. Available options: `wav2vec2`, `hubert`.
+    classifier: str
+        The classifier to use for training. Available options: `mlp`, `svm`, `rf`.
+    
+    Raises
+    ------
+    ValueError
+        If the backbone or classifier is invalid.
+    """
+    if backbone not in ["wav2vec2", "hubert"]:
+        raise ValueError(f"Invalid backbone: {backbone}")
+    if classifier not in ["mlp", "svm", "rf"]:
+        raise ValueError(f"Invalid prediction head: {classifier}")
+    
+    # Define the model folder
+    if backbone == "wav2vec2":
+        backbone_folder = "facebook-wav2vec2-base"
+    elif backbone == "hubert":
+        backbone_folder = "facebook-hubert-large-ls960-ft"
+
+    # Load embeddings
+    train_embeddings_folder_path = os.path.join("embeddings", backbone_folder, "files-downstream_train")
+    val_embeddings_folder_path   = os.path.join("embeddings", backbone_folder, "files-downstream_val")
     train_embeddings_loader = load_embeddings(train_embeddings_folder_path)
     val_embeddings_loader   = load_embeddings(val_embeddings_folder_path)
 
-    prediction_head = "mlp"
-    output_path     = "runs"
+    output_path = "runs"
 
-    if prediction_head == "mlp":
+    if classifier == "mlp":
         hyperparameters = {
             "epochs": 50,
             "batch_size": 128,
@@ -358,56 +421,107 @@ def TrainModel(c):
             "weight_decay": 0.03,
             "hidden_dim_1": 256,
             "output_dim": 1,
-            "randomness_seed": randomness_seed
+            "randomness_seed": randomness_seed,
         }
-        train_mlp(train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed, device)
-    elif prediction_head == "svm":
+        train_mlp(
+            train_embeddings_loader,
+            val_embeddings_loader,
+            train_embeddings_folder_path,
+            val_embeddings_folder_path,
+            hyperparameters,
+            output_path,
+            randomness_seed,
+            device,
+        )
+    elif classifier == "svm":
         hyperparameters = {
-            "batch_size": 64, 
+            "batch_size": 64,
             "C": 1.0,
             "kernel": "rbf",
             "gamma": "scale",
-            "randomness_seed": randomness_seed
+            "randomness_seed": randomness_seed,
         }
-        train_svm(train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed)
-    elif prediction_head == "rf":
+        train_svm(
+            train_embeddings_loader,
+            val_embeddings_loader,
+            train_embeddings_folder_path,
+            val_embeddings_folder_path,
+            hyperparameters,
+            output_path,
+            randomness_seed,
+        )
+    elif classifier == "rf":
         hyperparameters = {
-            "batch_size": 64, 
+            "batch_size": 64,
             "n_estimators": 100,
             "max_depth": 5,
             "min_samples_split": 2,
             "min_samples_leaf": 1,
-            "randomness_seed": randomness_seed
+            "randomness_seed": randomness_seed,
         }
-        train_rf(train_embeddings_loader, val_embeddings_loader, train_embeddings_folder_path, val_embeddings_folder_path, hyperparameters, output_path, randomness_seed)
-   
+        train_rf(
+            train_embeddings_loader,
+            val_embeddings_loader,
+            train_embeddings_folder_path,
+            val_embeddings_folder_path,
+            hyperparameters,
+            output_path,
+            randomness_seed,
+        )
+
+
+# -------------------------------------------------------------
+# MODEL TESTING TASKS
+# -------------------------------------------------------------
+
+
 @task
-def TestModel(c):
-    
-    test_embeddings_folder_path   = "embeddings/facebook-wav2vec2-base/files-downstream_test" 
-    # best_hyperparameters_path     = "runs/run4"
-    # prediction_head               = "mlp"
-    gender                        = ""
+def TestModel(c, backbone: str, classifier: str, run_number: int, study_number: int | None, gender: str = ""):
+    """
+    Test a classifier using the embeddings from the given backbone. Run `fab -h TestModel` to see the list of arguments.
 
-    # with open(os.path.join(best_hyperparameters_path, "best_hyperparameters.json"), "r") as f:
-    #     best_hyperparameters = json.load(f)
-    #     best_model_idx       = best_hyperparameters.get("best_trial_number")
-        
-    model_folder                  = "runs/mlp_study3/run22"
-    # model_folder                  = "runs/run4"
-    prediction_head               = "mlp" 
+    Args
+    ----
+    backbone: str
+        The backbone used to generate the embeddings. Available options: `wav2vec2`, `hubert`.
+    classifier: str
+        The classifier to use for testing. Available options: `mlp`, `svm`, `rf`.
+    run_number: int
+        The number of the run to test.
+    study_number: int, optional
+        The number of the study to test. If not provided, will assume the run is not part of a study. Default is None.
+    gender: str, optional
+        Test only embeddings of the specified gender. Available options: `M`, `F` or empty (both genders). Default is empty.
 
-    # model_folder                  = "runs/run5"
-    
-    # model_folder = os.path.join(best_hyperparameters_path, f"run{best_model_idx}")
+    Raises
+    ------
+    ValueError
+        If the backbone, classifier or gender is invalid.
+    """
+    if backbone not in ["wav2vec2", "hubert"]:
+        raise ValueError(f"Invalid backbone: {backbone}")
+    if classifier not in ["mlp", "svm", "rf"]:
+        raise ValueError(f"Invalid prediction head: {classifier}")
+    if gender not in ["M", "F", ""]:
+        raise ValueError(f"Invalid gender: {gender}")
 
-    if prediction_head == "mlp":
-        test_mlp(test_embeddings_folder_path, model_folder, use_best_model=True, device=device)
-    elif prediction_head == "svm":
+    # Load embeddings
+    if backbone == "wav2vec2":
+        backbone_folder = "facebook-wav2vec2-base"
+    elif backbone == "hubert":
+        backbone_folder = "facebook-hubert-large-ls960-ft"
+
+    test_embeddings_folder_path = os.path.join("embeddings", backbone_folder, "files-downstream_test")
+
+    # Load model
+    if study_number is not None:
+        model_folder = os.path.join("runs", f"{classifier}_study{study_number}", f"run{run_number}")
+    else:
+        model_folder = os.path.join("runs", f"run{run_number}")
+
+    if classifier == "mlp":
+        test_mlp(test_embeddings_folder_path, model_folder, gender, use_best_model=True, device=device)
+    elif classifier == "svm":
         test_svm(test_embeddings_folder_path, model_folder, gender)
-    elif prediction_head == "rf":
-        test_rf(test_embeddings_folder_path, model_folder)
-        
-#----------------------------------------------------------------------------
-# Test Model
-  
+    elif classifier == "rf":
+        test_rf(test_embeddings_folder_path, model_folder, gender)
