@@ -476,7 +476,7 @@ def TrainModel(c, backbone: str, classifier: str):
 
 
 @task
-def TestModel(c, backbone: str, classifier: str, run_number: int, study_number: int | None, gender: str = ""):
+def TestModel(c, backbone: str, classifier: str, run_number: int, study_number: int | None = None, gender: str = ""):
     """
     Test a classifier using the embeddings from the given backbone. Run `fab -h TestModel` to see the list of arguments.
 
@@ -486,9 +486,9 @@ def TestModel(c, backbone: str, classifier: str, run_number: int, study_number: 
         The backbone used to generate the embeddings. Available options: `wav2vec2`, `hubert`.
     classifier: str
         The classifier to use for testing. Available options: `mlp`, `svm`, `rf`.
-    run_number: int
+    run-number: int
         The number of the run to test.
-    study_number: int, optional
+    study-number: int, optional
         The number of the study to test. If not provided, will assume the run is not part of a study. Default is None.
     gender: str, optional
         Test only embeddings of the specified gender. Available options: `M`, `F` or empty (both genders). Default is empty.

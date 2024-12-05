@@ -83,25 +83,25 @@ Run individual tasks using the command `fab <task_name>`. For example, run this 
 - **Visualize embeddings using UMAP or t-SNE:**
 
   ```bash
-  fab VisualizeEmbeddingsUMAP <model>
-  fab VisualizeEmbeddingsTSNE <model>
+  fab VisualizeEmbeddingsUMAP --backbone=<backbone>
+  fab VisualizeEmbeddingsTSNE --backbone=<backbone>
   ```
 
-  Replace `<model>` with `wav2vec2` or `hubert`, depending on which you used on the previous step.
+  Replace `<backbone>` with `wav2vec2` or `hubert`, depending on which you used on the previous step.
 
   Alternatively, you can visualize the embeddings using both UMAP and t-SNE by running:
 
   ```bash
-  fab VisualizeEmbeddings <model>
+  fab VisualizeEmbeddings --backbone=<backbone>
   ```
 
 - **Optimize hyperparameters for a specific model:**
 
   ```bash
-  fab OptimizeHyperparameters <backbone> <model>
+  fab OptimizeHyperparameters --backbone=<backbone> --classifier=<classifier>
   ```
 
-  Replace `<backbone>` with `wav2vec2` or `hubert`, depending on the backbone used to generate the embeddings, and `<model>` with `mlp`, `svm`, or `rf`, depending on the model you want to train.  
+  Replace `<backbone>` with `wav2vec2` or `hubert`, depending on the backbone used to generate the embeddings, and `<classifier>` with `mlp`, `svm`, or `rf`, depending on the model you want to train.  
 
   Running this command will initiate a search for the best hyperparameters, optimizing the model's performance.
 
@@ -110,23 +110,23 @@ Run individual tasks using the command `fab <task_name>`. For example, run this 
   If you want to train a single model, without searching for the best hyperparameters, you can run:
 
   ```bash
-  fab TrainModel <backbone> <model>
+  fab TrainModel --backbone=<backbone> --classifier=<classifier>
   ```
 
-  Replace `<backbone>` with `wav2vec2` or `hubert`, depending on the backbone used to generate the embeddings, and `<model>` with `mlp`, `svm`, or `rf`, depending on the model you want to train.  
+  Replace `<backbone>` with `wav2vec2` or `hubert`, depending on the backbone used to generate the embeddings, and `<classifier>` with `mlp`, `svm`, or `rf`, depending on the model you want to train.  
 
   Running this command will train the specified model using predefined hyperparameters.
 
 - **Test a model:**
 
   ```bash
-  fab TestModel <backbone> <model> <run> <study> <gender>
+  fab TestModel --backbone=<backbone> --classifier=<classifier> --run-number=<run> --study-number=<study> --gender=<gender>
   ```
 
   Replace:
   
   - `<backbone>` with `wav2vec2` or `hubert`, depending on the backbone used to generate the embeddings
-  - `<model>` with `mlp`, `svm`, or `rf`, depending on the model you want to train
+  - `<classifier>` with `mlp`, `svm`, or `rf`, depending on the model you want to train
   - `<run>` with the number best run (i.e. the run that resulted in the best model)
   - `<study>` with number of the study to which the run belongs
   - `<gender>` with the `M` or `F`, if you want to test the model for a particular gender only (optional).
