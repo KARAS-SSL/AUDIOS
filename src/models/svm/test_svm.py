@@ -12,7 +12,7 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
 )
 
-from src.utils.dataset import load_embeddings
+from src.utils.embeddings import load_embeddings
 from src.utils.eer import compute_eer
 
 # ----------------------------------------------------------------

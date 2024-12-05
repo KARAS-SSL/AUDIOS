@@ -14,8 +14,7 @@ from sklearn.metrics import (
 )
 
 from src.models.mlp.mlp_model import MLP
-from src.utils.dataset import load_embeddings
-from src.utils.eer import compute_eer
+from src.utils.embeddings import load_embeddings
 
 # ----------------------------------------------------------------
 
@@ -61,6 +60,7 @@ def load_model(run_path: str, use_best_model: bool, model: nn.Module, device: st
 def test_mlp(
     test_embeddings_folder_path: str,
     run_path: str,
+    gender: str = "",
     use_best_model: bool = True,
     device: str = "cpu",
 ) -> None:
@@ -73,6 +73,8 @@ def test_mlp(
         The path to the folder containing the test embeddings.
     run_path : str
         The path to the run directory containing the model checkpoint.
+    gender : str
+        Filter embeddings by gender. Default is "" (no filter).
     use_best_model : bool, optional
         Flag to determine whether to load the best model checkpoint. Default is True.
     device : str, optional
@@ -104,7 +106,7 @@ def test_mlp(
 
     # Create the DataLoader for the test set
     test_loader = load_embeddings(
-        test_embeddings_folder_path, batch_size=batch_size, shuffle=False
+        test_embeddings_folder_path, gender, batch_size=batch_size, shuffle=False
     )
 
     # Initialize lists to hold the true labels and predicted probabilities

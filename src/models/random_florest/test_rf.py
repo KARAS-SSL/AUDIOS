@@ -12,12 +12,12 @@ from sklearn.metrics import (
     precision_recall_fscore_support,
 )
 
-from src.utils.dataset import load_embeddings
+from src.utils.embeddings import load_embeddings
 from src.utils.eer import compute_eer
 
 # --------------------------------------------------------------
 
-def test_rf(test_embeddings_folder_path: str, model_folder: str) -> None:
+def test_rf(test_embeddings_folder_path: str, model_folder: str, gender: str = "") -> None:
     """
     Test the model and compute evaluation metrics (accuracy, precision, recall, F1-score and EER).
 
@@ -27,13 +27,15 @@ def test_rf(test_embeddings_folder_path: str, model_folder: str) -> None:
         The path to the folder containing the test embeddings.
     model_folder : str
         The path to the folder containing the model and scaler.
+    gender : str
+        Filter embeddings by gender. Default is "" (no filter).
 
     Returns
     -------
     None
     """
     # Load test embeddings
-    test_loader = load_embeddings(test_embeddings_folder_path)
+    test_loader = load_embeddings(test_embeddings_folder_path, gender)
     test_inputs, test_targets = zip(*test_loader)
     test_inputs = np.vstack(test_inputs)
     test_targets = np.hstack(test_targets)
