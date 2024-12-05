@@ -17,14 +17,16 @@ In order know more about the dataset and download it, please follow the instruct
 
 ---
 
-## How to Run the Fabfile ?
+## How to run the Project ?
 
-The `fabfile` contains tasks that automate the pipeline using **Fabric**, a Python library for task automation. Below is a step-by-step guide to using it:
+The `fabfile.py` contains tasks that automate the pipeline using **Fabric**, a Python library for task automation. Below is a step-by-step guide to using it within this project:
 
 ### 1. **Setup**
-Ensure you have Python installed along with Fabric:
+
+First things first, make sure you have all dependencies installed with the following command:
+
 ```bash
-pip install fabric
+pip install -r requirements.txt
 ```
 
 ### 2. **Available Tasks**
