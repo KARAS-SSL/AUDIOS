@@ -8,8 +8,8 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from src.train.mlp.mlp_model import MLP
-from src.utils.train import compute_eer
+from src.models.mlp.mlp_model import MLP
+from src.utils.eer import compute_eer
 
 # ----------------------------------------------------------------
 # TRAINING FUNCTION

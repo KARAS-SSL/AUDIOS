@@ -13,11 +13,11 @@ from sklearn.metrics import (
 )
 
 from src.utils.dataset import load_embeddings
-from src.utils.train import compute_eer
+from src.utils.eer import compute_eer
 
-# ----------------------------------------------------------------
+# --------------------------------------------------------------
 
-def test_svm(test_embeddings_folder_path: str, model_folder: str, gender: str = "") -> None:
+def test_rf(test_embeddings_folder_path: str, model_folder: str) -> None:
     """
     Test the model and compute evaluation metrics (accuracy, precision, recall, F1-score and EER).
 
@@ -27,37 +27,32 @@ def test_svm(test_embeddings_folder_path: str, model_folder: str, gender: str = 
         The path to the folder containing the test embeddings.
     model_folder : str
         The path to the folder containing the model and scaler.
-    gender : str
-        Filter embeddings by gender. Default is "" (no filter).
 
     Returns
     -------
     None
     """
     # Load test embeddings
-    test_loader = load_embeddings(test_embeddings_folder_path, gender)
+    test_loader = load_embeddings(test_embeddings_folder_path)
     test_inputs, test_targets = zip(*test_loader)
     test_inputs = np.vstack(test_inputs)
     test_targets = np.hstack(test_targets)
 
     # Load model and scaler
-    svm = joblib.load(os.path.join(model_folder, "svm_model.joblib"))
+    rf = joblib.load(os.path.join(model_folder, "random_forest_model.joblib"))
     scaler = joblib.load(os.path.join(model_folder, "scaler.joblib"))
 
     # Normalize test inputs
     test_inputs = scaler.transform(test_inputs)
 
     # Make predictions
-    test_predictions = svm.predict(test_inputs)
+    test_predictions = rf.predict(test_inputs)
     test_accuracy = accuracy_score(test_targets, test_predictions)
     test_report = classification_report(test_targets, test_predictions)
 
-    # Calculate Precision, Recall, F1-Score
-    precision, recall, f1, _ = precision_recall_fscore_support(test_targets, test_predictions, average="binary")
-
-    # Calculate EER
+    precision, recall, f1, _ = precision_recall_fscore_support(test_targets, test_predictions, average='binary') 
     eer, _ = compute_eer(test_targets, test_predictions)
-
+   
     print(f"Test Accuracy: {test_accuracy:.4f}")
     print(f"Precision: {precision:.4f}")
     print(f"Recall: {recall:.4f}")
@@ -87,7 +82,7 @@ def test_svm(test_embeddings_folder_path: str, model_folder: str, gender: str = 
     metrics = {"test_accuracy": test_accuracy, "test_report": test_report, "eer": eer}
 
     # Save the metrics to a JSON file
-    metrics["model"] = "SVM"
+    metrics["model"] = "Random Forest"
     metrics["test_dataset"] = test_embeddings_folder_path
     metrics_file_path = os.path.join(model_folder, "test_results.json")
     with open(metrics_file_path, "w") as f:

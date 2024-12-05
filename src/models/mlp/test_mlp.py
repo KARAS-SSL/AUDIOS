@@ -13,9 +13,9 @@ from sklearn.metrics import (
     roc_curve,
 )
 
-from src.train.mlp.mlp_model import MLP
+from src.models.mlp.mlp_model import MLP
 from src.utils.dataset import load_embeddings
-from src.utils.train import compute_eer
+from src.utils.eer import compute_eer
 
 # ----------------------------------------------------------------
 

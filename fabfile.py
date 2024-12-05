@@ -7,14 +7,14 @@ from src.utils.dataset import add_duration_dataset, add_amplitude_dataset, gener
 
 from src.utils.embeddings import generate_embeddings_wav2vec, generate_embeddings_hubert
 
-from src.train.mlp.train_mlp import train_mlp 
-from src.train.mlp.test_mlp import test_mlp 
+from src.models.mlp.train_mlp import train_mlp 
+from src.models.mlp.test_mlp import test_mlp 
 
-from src.train.svm.train_svm import train_svm
-from src.train.svm.test_svm import test_svm
+from src.models.svm.train_svm import train_svm
+from src.models.svm.test_svm import test_svm
 
-from src.train.random_florest.train_rf import train_rf
-from src.train.random_florest.test_rf import test_rf
+from src.models.random_florest.train_rf import train_rf
+from src.models.random_florest.test_rf import test_rf
 
 from src.visualize.umap import visualize_embeddings_umap
 from src.visualize.tsne import visualize_embeddings_tsne

@@ -1,7 +1,6 @@
 import torch
 import torch.nn as nn
 
-
 class MLP(nn.Module):
     """
     A modular Multi-Layer Perceptron (MLP) class.

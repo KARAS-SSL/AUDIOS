@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import StandardScaler
 
-from src.utils.train import compute_eer
+from src.utils.eer import compute_eer
 
 # ----------------------------------------------------------------
 # TRAINING FUNCTION

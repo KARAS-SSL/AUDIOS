@@ -1,7 +1,6 @@
 import numpy as np
 from sklearn.metrics import roc_curve
 
-
 def compute_eer(y_true: np.ndarray, y_scores: np.ndarray) -> tuple[float, float]:
     """
     Compute the Equal Error Rate (EER) given true labels and prediction scores.
